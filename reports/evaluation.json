@@ -1,0 +1,55 @@
+{
+  "ece": {
+    "female": 0.0043,
+    "male": 0.0042,
+    "unisex": 0.0099
+  },
+  "top_features": {
+    "floral": 0.0434,
+    "aromatic": 0.036,
+    "white floral": 0.0326,
+    "citrus": 0.0238,
+    "rose": 0.0185,
+    "lavender": 0.0165,
+    "sweet": 0.0162,
+    "oud": 0.0153,
+    "fresh spicy": 0.0134,
+    "woody": 0.0127,
+    "warm spicy": 0.0116,
+    "powdery": 0.0107,
+    "fruity": 0.0104,
+    "leather": 0.0095,
+    "amber": 0.0075
+  },
+  "by_votes": {
+    "0-4 votos": {
+      "n": 8019,
+      "accuracy": 0.6286,
+      "macro_f1": 0.5704
+    },
+    "5-19": {
+      "n": 5867,
+      "accuracy": 0.652,
+      "macro_f1": 0.5867
+    },
+    "20-99": {
+      "n": 5786,
+      "accuracy": 0.6626,
+      "macro_f1": 0.6242
+    },
+    "100+": {
+      "n": 4919,
+      "accuracy": 0.6528,
+      "macro_f1": 0.6158
+    }
+  },
+  "brand_split": {
+    "macro_f1": 0.5983,
+    "accuracy": 0.6391,
+    "n_test": 25662
+  },
+  "random_split": {
+    "macro_f1": 0.5986,
+    "accuracy": 0.647
+  }
+}

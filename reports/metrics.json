@@ -1,0 +1,116 @@
+{
+  "cv": {
+    "Baseline (clase mayoritaria)": {
+      "macro_f1_mean": 0.2258,
+      "macro_f1_std": 0.0,
+      "accuracy_mean": 0.5121,
+      "fit_seconds_per_fold": 0.0,
+      "note": ""
+    },
+    "Regresión logística": {
+      "macro_f1_mean": 0.5716,
+      "macro_f1_std": 0.0024,
+      "accuracy_mean": 0.6342,
+      "fit_seconds_per_fold": 1.4,
+      "note": ""
+    },
+    "Random Forest": {
+      "macro_f1_mean": 0.5724,
+      "macro_f1_std": 0.0028,
+      "accuracy_mean": 0.6426,
+      "fit_seconds_per_fold": 3.3,
+      "note": ""
+    },
+    "Gradient Boosting (HGB)": {
+      "macro_f1_mean": 0.598,
+      "macro_f1_std": 0.0018,
+      "accuracy_mean": 0.6462,
+      "fit_seconds_per_fold": 13.8,
+      "note": ""
+    },
+    "MLP (red neuronal)": {
+      "macro_f1_mean": 0.5999,
+      "macro_f1_std": 0.0041,
+      "accuracy_mean": 0.6463,
+      "fit_seconds_per_fold": 7.7,
+      "note": ""
+    },
+    "SVM (RBF)": {
+      "macro_f1_mean": 0.5592,
+      "macro_f1_std": 0.0061,
+      "accuracy_mean": 0.6331,
+      "fit_seconds_per_fold": 25.8,
+      "note": "submuestra de 20,000 filas"
+    },
+    "Gradient Boosting (HGB) ajustado": {
+      "macro_f1_mean": 0.6002,
+      "macro_f1_std": 0.0021,
+      "accuracy_mean": 0.6469,
+      "fit_seconds_per_fold": 11.1,
+      "note": "hiperparámetros de RandomizedSearchCV"
+    }
+  },
+  "tuning": {
+    "Gradient Boosting (HGB)": {
+      "best_params": {
+        "min_samples_leaf": 20,
+        "max_leaf_nodes": 63,
+        "max_iter": 300,
+        "learning_rate": 0.08,
+        "l2_regularization": 0.0
+      },
+      "best_cv_macro_f1": 0.5903
+    }
+  },
+  "winner": "Gradient Boosting (HGB) ajustado",
+  "test": {
+    "macro_f1": 0.5986,
+    "accuracy": 0.647,
+    "baseline_accuracy": 0.5121,
+    "per_class": {
+      "female": {
+        "precision": 0.6555,
+        "recall": 0.6654,
+        "f1-score": 0.6604,
+        "support": 8187
+      },
+      "male": {
+        "precision": 0.5853,
+        "recall": 0.3663,
+        "f1-score": 0.4506,
+        "support": 3811
+      },
+      "unisex": {
+        "precision": 0.6525,
+        "recall": 0.72,
+        "f1-score": 0.6846,
+        "support": 12593
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "female",
+        "male",
+        "unisex"
+      ],
+      "matrix": [
+        [
+          5448,
+          143,
+          2596
+        ],
+        [
+          183,
+          1396,
+          2232
+        ],
+        [
+          2680,
+          846,
+          9067
+        ]
+      ]
+    },
+    "n_test": 24591
+  }
+}

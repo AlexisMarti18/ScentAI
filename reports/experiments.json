@@ -1,0 +1,85 @@
+{
+  "validation_rows": 19673,
+  "train_rows": 78691,
+  "E1_features": {
+    "solo_acordes": {
+      "macro_f1": 0.5979,
+      "accuracy": 0.6435,
+      "seconds": 3.4
+    },
+    "acordes_mas_notas": {
+      "macro_f1": 0.6701,
+      "accuracy": 0.7011,
+      "seconds": 17.5
+    },
+    "solo_notas": {
+      "macro_f1": 0.6671,
+      "accuracy": 0.698,
+      "seconds": 17.6
+    }
+  },
+  "E2_desbalance": {
+    "sin_pesos": {
+      "macro_f1": 0.5979,
+      "accuracy": 0.6435,
+      "seconds": 2.7
+    },
+    "class_weight_balanced": {
+      "macro_f1": 0.5808,
+      "accuracy": 0.5887,
+      "seconds": 2.2
+    },
+    "undersampling": {
+      "macro_f1": 0.5765,
+      "accuracy": 0.5836,
+      "seconds": 1.4,
+      "train_rows": 36591
+    }
+  },
+  "E3_votos": {
+    "min_0": {
+      "train_rows": 78691,
+      "val_todo": {
+        "macro_f1": 0.5979,
+        "accuracy": 0.6435
+      },
+      "val_solo_20+_votos": {
+        "macro_f1": 0.6266,
+        "accuracy": 0.6585
+      }
+    },
+    "min_5": {
+      "train_rows": 53014,
+      "val_todo": {
+        "macro_f1": 0.6019,
+        "accuracy": 0.6392
+      },
+      "val_solo_20+_votos": {
+        "macro_f1": 0.6367,
+        "accuracy": 0.6624
+      }
+    },
+    "min_20": {
+      "train_rows": 34487,
+      "val_todo": {
+        "macro_f1": 0.6011,
+        "accuracy": 0.6315
+      },
+      "val_solo_20+_votos": {
+        "macro_f1": 0.64,
+        "accuracy": 0.6619
+      }
+    },
+    "min_50": {
+      "train_rows": 23311,
+      "val_todo": {
+        "macro_f1": 0.596,
+        "accuracy": 0.6238
+      },
+      "val_solo_20+_votos": {
+        "macro_f1": 0.6384,
+        "accuracy": 0.6595
+      }
+    }
+  }
+}

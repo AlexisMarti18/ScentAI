@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScentAI · Tendencia de género por acordes</title>
+  <meta name="description" content="Estima si un perfil de acordes tiende a femenino, masculino o unisex.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="wrap">
+      <h1>Scent<em>AI</em></h1>
+      <p>Cargá los acordes de tu perfume y mirá hacia qué género tiende, antes de pedir la primera muestra.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="predict" id="tab-predict-btn">Predictor</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="model" id="tab-model-btn">Sobre el modelo</button>
+    </nav>
+
+    <div id="banner" class="banner" role="alert" hidden></div>
+
+    <!-- ======================= PREDICTOR ======================= -->
+    <section id="tab-predict" class="pane active" role="tabpanel" aria-labelledby="tab-predict-btn">
+      <div class="grid">
+        <div class="card">
+          <div class="card-head">
+            <h2>1. Elegí los acordes</h2>
+            <span class="counter" id="counter">0 / 8</span>
+          </div>
+          <p class="hint">Hasta <span id="max-accords">8</span> acordes. Buscá y tocá para agregar o quitar.</p>
+
+          <div class="presets" id="presets" aria-label="Ejemplos rápidos"></div>
+
+          <label class="sr-only" for="search">Buscar acorde</label>
+          <input id="search" class="search" type="search" placeholder="Buscar acorde (ej. woody, vanilla…)" autocomplete="off">
+          <div class="chips" id="chips" role="group" aria-label="Acordes disponibles"></div>
+
+          <h2 class="mt">2. Ajustá la intensidad</h2>
+          <p class="hint">Es relativa: el acorde más fuerte se toma como 100, igual que en los datos de entrenamiento.</p>
+          <div id="selected" class="selected"></div>
+          <p class="empty" id="selected-empty">Todavía no elegiste ningún acorde.</p>
+          <button class="btn-ghost" id="clear" type="button" hidden>Limpiar todo</button>
+        </div>
+
+        <div class="card result" aria-live="polite">
+          <h2>Resultado</h2>
+          <div id="result-empty" class="empty big">Elegí al menos un acorde para ver la tendencia.</div>
+          <div id="result" hidden>
+            <p class="eyebrow">Tendencia del perfil</p>
+            <p class="verdict" id="verdict"></p>
+            <p class="verdict-sub" id="verdict-sub"></p>
+            <div class="bars" id="bars"></div>
+
+            <h3>Qué acordes pesan más</h3>
+            <p class="hint">Cuánto cambia cada probabilidad si quitás ese acorde (en puntos porcentuales).</p>
+            <ul class="infl" id="influences"></ul>
+            <p class="disclaimer">Orientación estadística basada en perfumes ya lanzados; no reemplaza el criterio del perfumista ni garantiza cómo se percibirá la fórmula final.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= MODELO ======================= -->
+    <section id="tab-model" class="pane" role="tabpanel" aria-labelledby="tab-model-btn">
+      <div class="card" id="model-card">
+        <h2>Modelo en uso</h2>
+        <p class="hint" id="model-summary">Cargando…</p>
+        <div class="tiles" id="tiles"></div>
+      </div>
+
+      <div class="grid mt">
+        <div class="card">
+          <h3>Comparación de modelos (validación cruzada)</h3>
+          <div class="table-wrap"><table id="cv-table"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div class="card">
+          <h3>Matriz de confusión (conjunto de test)</h3>
+          <p class="hint">Filas: género real · Columnas: género predicho.</p>
+          <div class="table-wrap"><table id="cm-table"></table></div>
+          <h3 class="mt">Desempeño por clase</h3>
+          <div class="table-wrap"><table id="class-table"></table></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>Qué aporta usar notas además de acordes</h3>
+        <p class="hint">Experimento de validación interna (modelo rápido). Los acordes son lo que el perfumista define al pedir a la esenciera; las notas no se usan en la app.</p>
+        <div class="table-wrap"><table id="exp-table"></table></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer wrap">ScentAI · Proyecto de Machine Learning · Los datos provienen de Fragrantica (Kaggle)</footer>
+  <script src="app.js"></script>
+</body>
+</html>

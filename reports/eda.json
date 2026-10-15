@@ -1,0 +1,95 @@
+{
+  "cleaning": {
+    "raw_rows": 131930,
+    "raw_class_counts": {
+      "unisex": 67358,
+      "female": 44379,
+      "male": 20193
+    },
+    "no_accords": 2769,
+    "empty_after_parse": 0,
+    "bad_gender": 0,
+    "rows_before_dedup": 129161,
+    "class_counts_before_dedup": {
+      "unisex": 66339,
+      "female": 43134,
+      "male": 19688
+    },
+    "fingerprints": 122955,
+    "conflicting_fingerprints": 727,
+    "rows_in_conflicting_fingerprints": 5741,
+    "duplicates_removed": 6206,
+    "final_rows": 122955,
+    "final_class_counts": {
+      "unisex": 62962,
+      "female": 40936,
+      "male": 19057
+    }
+  },
+  "baseline_majority": 0.512073522833557,
+  "n_accords_counts": {
+    "1": 35,
+    "2": 258,
+    "3": 517,
+    "4": 696,
+    "5": 1105,
+    "6": 1432,
+    "7": 2130,
+    "8": 116782
+  },
+  "median_votes_by_n_accords": {
+    "1": 8.0,
+    "2": 5.5,
+    "3": 6.0,
+    "4": 7.0,
+    "5": 7.0,
+    "6": 7.0,
+    "7": 7.0,
+    "8": 14.0
+  },
+  "vote_count": {
+    "median": 13.0,
+    "p25": 3.0,
+    "p75": 69.0,
+    "max": 35695.0,
+    "lt5": 39981,
+    "eq0": 13764
+  },
+  "intensity": {
+    "top_accord_always_100": true,
+    "min": 1.0,
+    "median": 50.0,
+    "p5": 15.0
+  },
+  "n_accords_vocab": 92,
+  "rarest_accords": {
+    "varnish": 5,
+    "meat": 4,
+    "pear": 4,
+    "bbq": 3,
+    "tennis ball": 3,
+    "wet plaster": 2,
+    "brown scotch tape": 1,
+    "foresty": 1
+  },
+  "top_female_accords": [
+    "floral",
+    "white floral",
+    "fruity",
+    "sweet",
+    "rose",
+    "powdery",
+    "vanilla",
+    "fresh"
+  ],
+  "top_male_accords": [
+    "aromatic",
+    "fresh spicy",
+    "woody",
+    "warm spicy",
+    "citrus",
+    "amber",
+    "lavender",
+    "leather"
+  ]
+}

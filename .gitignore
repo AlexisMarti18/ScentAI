@@ -1,0 +1,19 @@
+# Datos pesados: el CSV de Kaggle (~127 MB) excede el limite de GitHub. Ver data/raw/README.md
+data/raw/*
+!data/raw/README.md
+data/processed/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Configuracion local de herramientas / IDE / SO
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
