@@ -1,6 +1,8 @@
 """Datos de entrenamiento y modelos candidatos."""
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
@@ -27,6 +29,16 @@ def load_dataset() -> tuple[pd.DataFrame, np.ndarray, list[str]]:
     df["accords_dict"] = df["accords"].map(parse_accords)
     X = to_matrix(df["accords_dict"], vocab)
     return df, X, vocab
+
+
+def update_metadata(**sections: dict) -> None:
+    """Agrega o reemplaza secciones de models/metadata.json (classifier, index_model, class_priors...)."""
+    meta = {}
+    if config.METADATA_PATH.exists():
+        meta = json.loads(config.METADATA_PATH.read_text(encoding="utf-8"))
+    meta.update(sections)
+    config.METADATA_PATH.parent.mkdir(exist_ok=True)
+    config.METADATA_PATH.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def candidates(seed: int = config.SEED) -> dict[str, object]:

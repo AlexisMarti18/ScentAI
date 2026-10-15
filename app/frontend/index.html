@@ -11,7 +11,7 @@
   <header class="header">
     <div class="wrap">
       <h1>Scent<em>AI</em></h1>
-      <p>Cargá los acordes de tu perfume y mirá hacia qué género tiende, antes de pedir la primera muestra.</p>
+      <p>Cargá los acordes de tu perfume y mirá en qué punto del espectro femenino ↔ masculino cae, antes de pedir la primera muestra.</p>
     </div>
   </header>
 
@@ -50,13 +50,29 @@
           <h2>Resultado</h2>
           <div id="result-empty" class="empty big">Elegí al menos un acorde para ver la tendencia.</div>
           <div id="result" hidden>
-            <p class="eyebrow">Tendencia del perfil</p>
+            <p class="eyebrow">Posición en el espectro</p>
             <p class="verdict" id="verdict"></p>
             <p class="verdict-sub" id="verdict-sub"></p>
+
+            <div class="spectrum" id="spectrum" role="img" aria-label="">
+              <div class="spectrum-track">
+                <div class="spectrum-marker" id="marker"></div>
+              </div>
+              <div class="spectrum-zones">
+                <span>Femenino</span><span>Unisex</span><span>Masculino</span>
+              </div>
+            </div>
+
+            <h3 class="mt">Femenino vs. masculino</h3>
+            <p class="hint">Ignora unisex: reparte 100 % entre los dos extremos.</p>
+            <div class="duel" id="duel"></div>
+
+            <h3 class="mt">Probabilidad según la etiqueta de género</h3>
+            <p class="hint">Cuánto aparece cada clase frente a su frecuencia habitual en los datos (×1 = igual al promedio).</p>
             <div class="bars" id="bars"></div>
 
             <h3>Qué acordes pesan más</h3>
-            <p class="hint">Cuánto cambia cada probabilidad si quitás ese acorde (en puntos porcentuales).</p>
+            <p class="hint">Cuánto se mueve el índice (en puntos, de 0 a 100) si quitás ese acorde.</p>
             <ul class="infl" id="influences"></ul>
             <p class="disclaimer">Orientación estadística basada en perfumes ya lanzados; no reemplaza el criterio del perfumista ni garantiza cómo se percibirá la fórmula final.</p>
           </div>
@@ -66,30 +82,41 @@
 
     <!-- ======================= MODELO ======================= -->
     <section id="tab-model" class="pane" role="tabpanel" aria-labelledby="tab-model-btn">
-      <div class="card" id="model-card">
-        <h2>Modelo en uso</h2>
+      <div class="card">
+        <h2>Modelo principal: índice de masculinidad percibida</h2>
         <p class="hint" id="model-summary">Cargando…</p>
         <div class="tiles" id="tiles"></div>
       </div>
 
+      <div class="card mt">
+        <h3>Índice vs. clasificador por etiqueta</h3>
+        <p class="hint" id="cmp-hint">Sobre perfumes del test con votos de percepción suficientes.</p>
+        <div class="table-wrap"><table id="cmp-table"></table></div>
+      </div>
+
       <div class="grid mt">
         <div class="card">
-          <h3>Comparación de modelos (validación cruzada)</h3>
-          <div class="table-wrap"><table id="cv-table"><thead></thead><tbody></tbody></table></div>
+          <h3>Cómo se entrenó con los votos</h3>
+          <p class="hint">Esquemas probados en validación (sin usar el test).</p>
+          <div class="table-wrap"><table id="weights-table"></table></div>
         </div>
         <div class="card">
-          <h3>Matriz de confusión (conjunto de test)</h3>
-          <p class="hint">Filas: género real · Columnas: género predicho.</p>
-          <div class="table-wrap"><table id="cm-table"></table></div>
-          <h3 class="mt">Desempeño por clase</h3>
-          <div class="table-wrap"><table id="class-table"></table></div>
+          <h3>Etiqueta de marca vs. percepción</h3>
+          <p class="hint" id="bias-text"></p>
+          <div class="table-wrap"><table id="exp-table"></table></div>
         </div>
       </div>
 
       <div class="card mt">
-        <h3>Qué aporta usar notas además de acordes</h3>
-        <p class="hint">Experimento de validación interna (modelo rápido). Los acordes son lo que el perfumista define al pedir a la esenciera; las notas no se usan en la app.</p>
-        <div class="table-wrap"><table id="exp-table"></table></div>
+        <h2>Clasificador de la etiqueta <code>gender</code> (complemento)</h2>
+        <p class="hint" id="clf-summary"></p>
+        <div class="grid">
+          <div class="table-wrap"><table id="cv-table"><thead></thead><tbody></tbody></table></div>
+          <div>
+            <div class="table-wrap"><table id="cm-table"></table></div>
+            <div class="table-wrap mt"><table id="class-table"></table></div>
+          </div>
+        </div>
       </div>
     </section>
   </main>

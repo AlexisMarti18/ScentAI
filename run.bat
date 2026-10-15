@@ -5,7 +5,7 @@ cd /d "%~dp0"
 if not exist .venv\Scripts\python.exe (
     echo Creando entorno virtual e instalando dependencias...
     python -m venv .venv || goto :error
-    .venv\Scripts\python.exe -m pip install -r requirements.txt || goto :error
+    .venv\Scripts\python.exe -m pip install -r requirements-app.txt || goto :error
 )
 
 echo.
@@ -14,5 +14,5 @@ echo Abri http://localhost:8000 en el navegador  (Ctrl+C para detener)
 goto :eof
 
 :error
-echo No se pudo preparar el entorno. Verifica que Python 3.12+ este instalado.
+echo No se pudo preparar el entorno. Verifica que Python 3.14 este instalado.
 exit /b 1

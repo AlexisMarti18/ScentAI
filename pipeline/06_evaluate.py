@@ -1,7 +1,7 @@
-"""05 - Evaluacion del modelo final y figuras para el README.
+"""06 - Evaluacion del modelo final y figuras para el README.
 
-Requiere haber corrido 02, 03 y 04. Genera docs/figures/model_*.png y reports/evaluation.json.
-Uso: python pipeline/05_evaluate.py
+Requiere haber corrido 02, 03 y 04 (clasificador por etiqueta `gender`). Genera docs/figures/model_*.png y reports/evaluation.json.
+Uso: python pipeline/06_evaluate.py
 """
 import _bootstrap  # noqa: F401
 

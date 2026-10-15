@@ -15,8 +15,8 @@ class PredictRequest(BaseModel):
         "json_schema_extra": {
             "example": {"accords": [
                 {"name": "woody", "intensity": 100},
-                {"name": "fresh spicy", "intensity": 70},
-                {"name": "aromatic", "intensity": 55},
+                {"name": "leather", "intensity": 75},
+                {"name": "smoky", "intensity": 60},
             ]}
         }
     }
@@ -24,12 +24,15 @@ class PredictRequest(BaseModel):
 
 class Influence(BaseModel):
     accord: str
-    effect: dict[str, float]
-    pushes_toward: str
+    index_effect: float = Field(description="Cambio del indice al quitar el acorde (+ = empuja a masculino)")
+    pushes_toward: str = Field(description="male | female | neutral")
 
 
 class PredictResponse(BaseModel):
-    label: str
-    probabilities: dict[str, float]
+    index: float = Field(ge=0, le=1, description="Posicion en el espectro: 0 femenino - 1 masculino")
+    zone: str = Field(description="female | unisex | male (limites 0,33 y 0,67)")
+    male_vs_female: dict[str, float] = Field(description="Lectura que ignora unisex")
+    class_probabilities: dict[str, float] = Field(description="Probabilidades del clasificador de la etiqueta gender")
+    lift: dict[str, float] = Field(description="Probabilidad / frecuencia base de cada clase")
     accords_used: dict[str, float]
     influences: list[Influence]

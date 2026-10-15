@@ -47,7 +47,8 @@ body {
 
 /* ---------- cards & layout ---------- */
 .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.grid > * { min-width: 0; }
+.card { min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 h2 { font-size: 1.1rem; }
 h3 { font-size: 1rem; margin-bottom: 4px; }
@@ -123,3 +124,28 @@ tr.best td { color: var(--primary); font-weight: 600; }
   .verdict { font-size: 1.8rem; }
 }
 @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+
+/* ---------- espectro femenino - masculino ---------- */
+.spectrum { margin: 6px 0 4px; }
+.spectrum-track {
+  position: relative; height: 16px; border-radius: 99px;
+  background: linear-gradient(90deg, var(--female) 0%, var(--female) 28%, var(--unisex) 38%, var(--unisex) 62%, var(--male) 72%, var(--male) 100%);
+}
+.spectrum-marker {
+  position: absolute; top: -6px; width: 6px; height: 28px; margin-left: -3px;
+  background: #fff; border-radius: 3px; box-shadow: 0 0 0 2px var(--bg); transition: left 0.25s ease;
+}
+.spectrum-zones { display: grid; grid-template-columns: 33fr 34fr 33fr; margin-top: 10px; font-size: 0.78rem; color: var(--muted); }
+.spectrum-zones span:nth-child(2) { text-align: center; }
+.spectrum-zones span:nth-child(3) { text-align: right; }
+
+.duel { display: grid; gap: 6px; }
+.duel-bar { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--card-2); }
+.duel-bar > div { transition: width 0.25s ease; }
+.duel-labels { display: flex; justify-content: space-between; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+.bar-row { grid-template-columns: 92px 1fr 150px; }
+.pct small { color: var(--muted); font-size: 0.78rem; }
+code { background: var(--card-2); padding: 1px 6px; border-radius: 6px; font-size: 0.9em; }
+@media (max-width: 800px) { .bar-row { grid-template-columns: 78px 1fr 112px; } }
+@media (prefers-reduced-motion: reduce) { .spectrum-marker, .duel-bar > div { transition: none; } }

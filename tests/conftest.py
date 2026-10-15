@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -14,13 +14,19 @@ VOCAB = ["aromatic", "floral", "sweet", "woody", "fresh spicy", "powdery"]
 
 @pytest.fixture(scope="session")
 def tiny_predictor() -> Predictor:
-    """Predictor chico entrenado con datos sinteticos: los tests no dependen del modelo real."""
+    """Predictor chico con datos sinteticos: los tests no dependen de los modelos reales."""
     rng = np.random.default_rng(0)
-    X = rng.random((300, len(VOCAB))).astype("float32")
-    # female ~ floral/sweet, male ~ aromatic/woody, unisex ~ el resto
-    score_f = X[:, 1] + X[:, 2]
-    score_m = X[:, 0] + X[:, 3]
-    y = np.where(score_f - score_m > 0.4, "female", np.where(score_m - score_f > 0.4, "male", "unisex"))
-    model = LogisticRegression(max_iter=500).fit(X, y)
-    return Predictor(model=model, vocab=VOCAB, metadata={"model_name": "tiny", "n_features": len(VOCAB),
-                     "n_train": 300, "n_test": 0, "metrics_test": {}})
+    X = rng.random((400, len(VOCAB))).astype("float32")
+    # femenino ~ floral/sweet/powdery, masculino ~ aromatic/woody/fresh spicy
+    masc = (X[:, 0] + X[:, 3] + X[:, 4]) - (X[:, 1] + X[:, 2] + X[:, 5])
+    index = np.clip(0.5 + masc / 4, 0, 1)
+    y = np.where(masc > 0.8, "male", np.where(masc < -0.8, "female", "unisex"))
+    classifier = LogisticRegression(max_iter=500).fit(X, y)
+    index_model = LinearRegression().fit(X, index)
+    metadata = {
+        "classifier": {"model_name": "tiny", "n_features": len(VOCAB), "n_train": 400, "n_test": 0,
+                       "metrics_test": {"accuracy": 0.6, "macro_f1": 0.5, "baseline_accuracy": 0.5}},
+        "index_model": {"n_train": 400, "metrics_test_N10": {"mae": 0.1}},
+        "class_priors": {"female": 0.33, "male": 0.15, "unisex": 0.52},
+    }
+    return Predictor(classifier=classifier, index_model=index_model, vocab=VOCAB, metadata=metadata)

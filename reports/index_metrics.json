@@ -1,0 +1,188 @@
+{
+  "entrenamiento": {
+    "filas_train_regresor": 80465,
+    "filas_train_total": 98364,
+    "fraccion": 0.818,
+    "peso": "sqrt(min(votos_percepcion, 100))",
+    "hiperparametros": {
+      "categorical_features": "from_dtype",
+      "early_stopping": true,
+      "interaction_cst": null,
+      "l2_regularization": 0.0,
+      "learning_rate": 0.08,
+      "loss": "squared_error",
+      "max_bins": 255,
+      "max_depth": null,
+      "max_features": 1.0,
+      "max_iter": 300,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 40,
+      "monotonic_cst": null,
+      "n_iter_no_change": 20,
+      "quantile": null,
+      "random_state": 42,
+      "scoring": "loss",
+      "tol": 1e-07,
+      "validation_fraction": 0.1,
+      "verbose": 0,
+      "warm_start": false
+    }
+  },
+  "cv": {
+    "n_minimo_votos_validacion": 10,
+    "mae_media": 0.1259,
+    "mae_std": 0.0012,
+    "spearman_media": 0.8093,
+    "spearman_std": 0.0042
+  },
+  "zonas": {
+    "limites": [
+      0.33,
+      0.67
+    ],
+    "matriz_N10": {
+      "labels": [
+        "female",
+        "unisex",
+        "male"
+      ],
+      "matriz": [
+        [
+          3338,
+          791,
+          24
+        ],
+        [
+          570,
+          2191,
+          514
+        ],
+        [
+          58,
+          964,
+          1168
+        ]
+      ]
+    }
+  },
+  "resultados": {
+    "N10": {
+      "n_test": 9618,
+      "indice_medio_por_clase": {
+        "female": 0.142,
+        "male": 0.81,
+        "unisex": 0.465
+      },
+      "A_clasificador_umbral": {
+        "mae": 0.1571,
+        "r2": 0.5413,
+        "spearman": 0.7995,
+        "zonas_f1_macro": 0.5371,
+        "zonas_exactitud": 0.6237
+      },
+      "A_clasificador_argmax": {
+        "mae": 0.1571,
+        "r2": 0.5413,
+        "spearman": 0.7995,
+        "zonas_f1_macro": 0.6125,
+        "zonas_exactitud": 0.6444
+      },
+      "B_indice": {
+        "mae": 0.1256,
+        "r2": 0.6558,
+        "spearman": 0.8104,
+        "zonas_f1_macro": 0.6762,
+        "zonas_exactitud": 0.6963
+      },
+      "mejora_mae_pct": 20.1,
+      "spearman_b_no_peor": true
+    },
+    "N30": {
+      "n_test": 5430,
+      "indice_medio_por_clase": {
+        "female": 0.14,
+        "male": 0.816,
+        "unisex": 0.464
+      },
+      "A_clasificador_umbral": {
+        "mae": 0.1564,
+        "r2": 0.5543,
+        "spearman": 0.8106,
+        "zonas_f1_macro": 0.5482,
+        "zonas_exactitud": 0.6304
+      },
+      "A_clasificador_argmax": {
+        "mae": 0.1564,
+        "r2": 0.5543,
+        "spearman": 0.8106,
+        "zonas_f1_macro": 0.6155,
+        "zonas_exactitud": 0.6466
+      },
+      "B_indice": {
+        "mae": 0.1222,
+        "r2": 0.6778,
+        "spearman": 0.8242,
+        "zonas_f1_macro": 0.6893,
+        "zonas_exactitud": 0.7077
+      },
+      "mejora_mae_pct": 21.9,
+      "spearman_b_no_peor": true
+    },
+    "N100": {
+      "n_test": 2370,
+      "indice_medio_por_clase": {
+        "female": 0.134,
+        "male": 0.823,
+        "unisex": 0.467
+      },
+      "A_clasificador_umbral": {
+        "mae": 0.1602,
+        "r2": 0.565,
+        "spearman": 0.8211,
+        "zonas_f1_macro": 0.5527,
+        "zonas_exactitud": 0.6194
+      },
+      "A_clasificador_argmax": {
+        "mae": 0.1602,
+        "r2": 0.565,
+        "spearman": 0.8211,
+        "zonas_f1_macro": 0.6102,
+        "zonas_exactitud": 0.6359
+      },
+      "B_indice": {
+        "mae": 0.1246,
+        "r2": 0.6906,
+        "spearman": 0.8317,
+        "zonas_f1_macro": 0.6842,
+        "zonas_exactitud": 0.7025
+      },
+      "mejora_mae_pct": 22.2,
+      "spearman_b_no_peor": true
+    }
+  },
+  "criterios": {
+    "mae_10pct_menor_en_N10": true,
+    "spearman_no_peor_en_N10": true,
+    "zonas_f1_macro_065_en_N10": true,
+    "mismo_patron_en_N30_y_N100": true
+  },
+  "caso_prueba": {
+    "acordes": {
+      "alcohol": 9,
+      "cannabis": 15,
+      "chocolate": 16,
+      "woody": 84,
+      "aldehydic": 5,
+      "leather": 75,
+      "smoky": 61
+    },
+    "A_probabilidades": {
+      "female": 0.03,
+      "male": 0.07,
+      "unisex": 0.9
+    },
+    "A_indice_esperado": 0.479,
+    "B_indice": 0.717,
+    "B_zona": "male"
+  }
+}

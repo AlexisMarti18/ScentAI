@@ -60,5 +60,18 @@
     "unisex": 12593,
     "female": 8187,
     "male": 3811
+  },
+  "perceived": {
+    "rows_with_votes": 100541,
+    "train_rows_with_votes": 80465,
+    "test_rows_with_votes": 20076,
+    "votes_mean": 64.5,
+    "votes_median": 5.0,
+    "votes_p75": 24.0,
+    "votes_p90": 98.0,
+    "rating_votes_mean": 172.5,
+    "rating_votes_median": 13.0,
+    "rating_votes_p75": 69.0,
+    "rating_votes_p90": 283.0
   }
 }

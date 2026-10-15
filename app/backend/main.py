@@ -33,9 +33,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Predictor de genero de perfumes",
-    description="Dado un perfil de acordes (con intensidad) estima si el perfume tiende a "
-                "femenino, masculino o unisex.",
-    version="1.0.0",
+    description="Dado un perfil de acordes (con intensidad) ubica el perfume en el espectro "
+                "femenino - masculino (indice 0-1) y devuelve ademas las probabilidades por clase.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -80,7 +80,9 @@ def model_info():
     """Metadatos del modelo y resultados del pipeline (leidos de reports/, nada hardcodeado)."""
     p = get_predictor()
     info = {"metadata": p.metadata}
-    for key, fname in (("metrics", "metrics.json"), ("experiments", "experiments.json")):
+    for key, fname in (("classifier_metrics", "metrics.json"), ("index_metrics", "index_metrics.json"),
+                       ("experiments", "experiments.json"), ("vote_weights", "vote_weights.json"),
+                       ("eda", "eda.json")):
         path = config.REPORTS_DIR / fname
         if path.exists():
             info[key] = json.loads(path.read_text(encoding="utf-8"))

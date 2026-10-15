@@ -1,17 +1,9 @@
-# Dependencias fijadas (probadas con Python 3.12-3.14).
-# scikit-learn debe coincidir EXACTO con la version que entreno models/model.joblib.
+# Entorno completo: app + pipeline (EDA / ETL / entrenamiento) + tests.
+# Versiones fijadas y probadas con Python 3.14.
+-r requirements-app.txt
 
-# --- App (lo unico necesario para USAR el predictor) ---
-numpy==2.5.2
-scikit-learn==1.9.0
-joblib==1.6.0
-fastapi==0.141.1
-uvicorn==0.53.0
-pydantic==2.13.5
-
-# --- Pipeline (EDA / ETL / entrenamiento) ---
+# --- Pipeline ---
 pandas==3.0.5
-scipy==1.18.1
 matplotlib==3.11.2
 seaborn==0.13.2
 

@@ -15,6 +15,7 @@ import plotting as pl
 from perfume_gender import config
 from perfume_gender.data import clean, load_raw
 from perfume_gender.features import build_vocab, to_matrix
+from perfume_gender.perception import perception_index, perception_votes, zone
 
 
 def main() -> None:
@@ -133,6 +134,40 @@ def main() -> None:
     fig.colorbar(im, ax=ax, shrink=0.8, label="Correlacion de Pearson")
     ax.set_title("Co-ocurrencia entre los 25 acordes más frecuentes")
     pl.save(fig, config.FIGURES_DIR / "eda_07_correlacion.png")
+
+    # ---- 8. Etiqueta `gender` vs percepcion de los usuarios (justifica el indice) ----
+    df["perc_votes"] = perception_votes(df)
+    df["perc_index"] = perception_index(df)
+    fiables = df[df["perc_votes"] >= 30]
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharey=True)
+    for ax, g in zip(axes, config.CLASSES):
+        sub = fiables.loc[fiables["gender"] == g, "perc_index"]
+        ax.hist(sub, bins=20, range=(0, 1), color=pl.GENDER_COLORS[g], weights=np.ones(len(sub)) / len(sub))
+        ax.set_title(f"Etiqueta: {config.CLASS_LABELS_ES[g]} (n={len(sub):,})")
+        for lim in (0.33, 0.67):
+            ax.axvline(lim, color="black", ls=":", lw=0.8)
+    axes[0].set_ylabel("Proporción de perfumes")
+    fig.supxlabel("Índice percibido (0 = femenino, 1 = masculino); líneas punteadas: límites 0,33 y 0,67", fontsize=10)
+    fig.suptitle("Lo que dicen los usuarios que huele, según la etiqueta de género (≥ 30 votos de percepción)",
+                 fontsize=11, fontweight="bold", y=1.02)
+    pl.save(fig, config.FIGURES_DIR / "eda_08_etiqueta_vs_percepcion.png")
+    uni = zone(fiables.loc[fiables["gender"] == "unisex", "perc_index"].values)
+    report["perception"] = {
+        "perfumes_con_votos": int((df["perc_votes"] >= 1).sum()),
+        "perfumes_ge30_votos": int(len(fiables)),
+        "unisex_ge30": int(len(uni)),
+        "unisex_percibido_masculino_pct": round(float((uni == "male").mean() * 100), 1),
+        "unisex_percibido_femenino_pct": round(float((uni == "female").mean() * 100), 1),
+        "unisex_percibido_intermedio_pct": round(float((uni == "unisex").mean() * 100), 1),
+        "votos_percepcion": {"media": round(float(df["perc_votes"].mean()), 1),
+                             "mediana": float(df["perc_votes"].median()),
+                             "p75": float(df["perc_votes"].quantile(.75)),
+                             "p90": float(df["perc_votes"].quantile(.90))},
+        "votos_rating": {"media": round(float(df["vote_count"].mean()), 1),
+                         "mediana": float(df["vote_count"].median()),
+                         "p75": float(df["vote_count"].quantile(.75)),
+                         "p90": float(df["vote_count"].quantile(.90))},
+    }
 
     config.REPORTS_DIR.mkdir(exist_ok=True)
     (config.REPORTS_DIR / "eda.json").write_text(

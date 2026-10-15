@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from perfume_gender.predictor import InvalidAccordsError, Predictor
+from perfume_gender.predictor import Predictor
 
 
 @pytest.fixture()
@@ -11,6 +11,10 @@ def client(monkeypatch, tiny_predictor):
 
     with TestClient(app) as c:
         yield c
+
+
+def _post(client, accords):
+    return client.post("/api/predict", json={"accords": [{"name": n, "intensity": v} for n, v in accords]})
 
 
 def test_health(client):
@@ -23,38 +27,53 @@ def test_accords_endpoint(client):
     assert data["max_accords"] == 8
 
 
-def test_predict_ok(client):
-    r = client.post("/api/predict", json={"accords": [
-        {"name": "aromatic", "intensity": 100}, {"name": "woody", "intensity": 70}]})
+def test_predict_new_schema(client):
+    r = _post(client, [("aromatic", 100), ("woody", 70)])
     assert r.status_code == 200
     body = r.json()
-    assert body["label"] in {"female", "male", "unisex"}
-    assert abs(sum(body["probabilities"].values()) - 1) < 1e-3
-    assert body["accords_used"]["aromatic"] == 100.0
+    assert set(body) == {"index", "zone", "male_vs_female", "class_probabilities", "lift",
+                         "accords_used", "influences"}
+    assert 0 <= body["index"] <= 1
+    assert body["zone"] in {"female", "unisex", "male"}
+    assert abs(sum(body["class_probabilities"].values()) - 1) < 1e-3
+    assert abs(sum(body["male_vs_female"].values()) - 1) < 1e-3
+    assert set(body["lift"]) == {"female", "male", "unisex"}
     assert {i["accord"] for i in body["influences"]} == {"aromatic", "woody"}
 
 
+def test_masculine_profile_lands_on_masculine_side(client):
+    masc = _post(client, [("aromatic", 100), ("woody", 90), ("fresh spicy", 80)]).json()
+    fem = _post(client, [("floral", 100), ("sweet", 90), ("powdery", 80)]).json()
+    assert masc["index"] > 0.6 > 0.4 > fem["index"]
+    assert masc["male_vs_female"]["male"] > 0.5 > fem["male_vs_female"]["male"]
+
+
+def test_influences_signs(client):
+    inf = {i["accord"]: i for i in _post(client, [("aromatic", 100), ("floral", 100)]).json()["influences"]}
+    assert inf["aromatic"]["pushes_toward"] == "male" and inf["aromatic"]["index_effect"] > 0
+    assert inf["floral"]["pushes_toward"] == "female" and inf["floral"]["index_effect"] < 0
+
+
 def test_predict_rescales_relative_intensity(client):
-    r = client.post("/api/predict", json={"accords": [{"name": "woody", "intensity": 40}]})
+    r = _post(client, [("woody", 40)])
     assert r.json()["accords_used"] == {"woody": 100.0}
 
 
 def test_predict_unknown_accord_is_422(client):
-    r = client.post("/api/predict", json={"accords": [{"name": "inexistente", "intensity": 50}]})
+    r = _post(client, [("inexistente", 50)])
     assert r.status_code == 422
     assert "inexistente" in r.json()["detail"]
 
 
 def test_predict_validation_errors(client):
     assert client.post("/api/predict", json={"accords": []}).status_code == 422
-    assert client.post("/api/predict", json={"accords": [{"name": "woody", "intensity": 0}]}).status_code == 422
-    too_many = [{"name": f"a{i}", "intensity": 10} for i in range(9)]
-    assert client.post("/api/predict", json={"accords": too_many}).status_code == 422
+    assert _post(client, [("woody", 0)]).status_code == 422
+    assert _post(client, [(f"a{i}", 10) for i in range(9)]).status_code == 422
 
 
-def test_predictor_rejects_empty(tiny_predictor):
-    with pytest.raises(InvalidAccordsError):
-        tiny_predictor.predict({})
+def test_model_info(client):
+    body = client.get("/api/model/info").json()
+    assert "classifier" in body["metadata"] and "index_model" in body["metadata"]
 
 
 def test_frontend_served(client):

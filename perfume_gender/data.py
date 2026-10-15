@@ -7,10 +7,12 @@ import pandas as pd
 
 from .config import CLASSES, DATA_RAW
 from .parsing import parse_accords
+from .perception import PERCEIVED_COLUMNS
 
 RAW_COLUMNS = [
     "id", "name", "brand", "gender", "vote_count", "accords",
     "notes_top", "notes_middle", "notes_base", "notes_flat",
+    *PERCEIVED_COLUMNS,
 ]
 
 

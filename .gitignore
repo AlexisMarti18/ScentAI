@@ -11,6 +11,10 @@ __pycache__/
 venv/
 env/
 
+# Documentos de trabajo (especificaciones, planes y tareas): no se versionan
+docs/spec-*.md
+tasks/
+
 # Configuracion local de herramientas / IDE / SO
 .claude/
 .vscode/

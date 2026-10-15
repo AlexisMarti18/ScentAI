@@ -23,7 +23,7 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score, a
 from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_validate
 
 from perfume_gender import config
-from perfume_gender.modeling import candidates, load_dataset
+from perfume_gender.modeling import candidates, load_dataset, update_metadata
 
 SVM_SUBSAMPLE = 20_000  # la SVM RBF es O(n^2): se evalua sobre una submuestra estratificada
 
@@ -139,7 +139,8 @@ def main() -> None:
         "sklearn_version": sklearn.__version__,
         "model_size_mb": round(size_mb, 2),
     }
-    config.METADATA_PATH.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    priors = {c: round(float((ytr == c).mean()), 4) for c in classes}  # frecuencia base (para el "lift")
+    update_metadata(classifier=metadata, class_priors=priors)
     config.REPORTS_DIR.mkdir(exist_ok=True)
     (config.REPORTS_DIR / "metrics.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")

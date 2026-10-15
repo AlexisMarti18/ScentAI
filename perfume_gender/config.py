@@ -13,7 +13,8 @@ MODELS_DIR = ROOT / "models"
 REPORTS_DIR = ROOT / "reports"
 FIGURES_DIR = ROOT / "docs" / "figures"
 
-MODEL_PATH = MODELS_DIR / "model.joblib"
+MODEL_PATH = MODELS_DIR / "model.joblib"              # clasificador de la etiqueta `gender`
+INDEX_MODEL_PATH = MODELS_DIR / "index_model.joblib"  # modelo principal: indice de masculinidad percibida
 VOCAB_PATH = MODELS_DIR / "accords_vocab.json"
 METADATA_PATH = MODELS_DIR / "metadata.json"
 

@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 if [ ! -x .venv/bin/python ]; then
   echo "Creando entorno virtual e instalando dependencias..."
   python3 -m venv .venv
-  .venv/bin/python -m pip install -r requirements.txt
+  .venv/bin/python -m pip install -r requirements-app.txt
 fi
 
 echo

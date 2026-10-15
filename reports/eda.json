@@ -91,5 +91,25 @@
     "amber",
     "lavender",
     "leather"
-  ]
+  ],
+  "perception": {
+    "perfumes_con_votos": 100541,
+    "perfumes_ge30_votos": 27568,
+    "unisex_ge30": 13247,
+    "unisex_percibido_masculino_pct": 14.1,
+    "unisex_percibido_femenino_pct": 24.9,
+    "unisex_percibido_intermedio_pct": 61.0,
+    "votos_percepcion": {
+      "media": 64.5,
+      "mediana": 5.0,
+      "p75": 24.0,
+      "p90": 98.0
+    },
+    "votos_rating": {
+      "media": 172.5,
+      "mediana": 13.0,
+      "p75": 69.0,
+      "p90": 283.0
+    }
+  }
 }

@@ -1,0 +1,43 @@
+# La imagen solo necesita: perfume_gender/, app/, models/, reports/ y requirements-app.txt
+# (ver Dockerfile). Todo lo demas queda fuera para que la imagen sea chica y el build rapido.
+
+# Control de versiones y CI
+.git
+.gitignore
+.gitattributes
+.github
+
+# Entornos y caches de Python
+.venv
+venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+
+# Herramientas locales / IDE / SO
+.claude
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Datos (el CSV crudo pesa ~127 MB) y codigo que no se usa para servir la app
+data
+pipeline
+experiments
+tests
+
+# Documentacion y archivos de trabajo
+docs
+tasks
+*.md
+
+# Scripts de arranque local y archivos de Docker
+run.bat
+run.sh
+Dockerfile
+.dockerignore
+
+# Dependencias completas (la imagen usa requirements-app.txt)
+requirements.txt

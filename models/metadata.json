@@ -36,5 +36,69 @@
   },
   "trained_at": "2026-10-15T00:36:27+00:00",
   "sklearn_version": "1.9.0",
-  "model_size_mb": 1.0
+  "model_size_mb": 1.0,
+  "classifier": {
+    "model_name": "Gradient Boosting (HGB) ajustado",
+    "model_class": "HistGradientBoostingClassifier",
+    "classes": [
+      "female",
+      "male",
+      "unisex"
+    ],
+    "n_features": 72,
+    "n_train": 98364,
+    "n_test": 24591,
+    "metrics_test": {
+      "macro_f1": 0.5986,
+      "accuracy": 0.647,
+      "baseline_accuracy": 0.5121
+    },
+    "per_class_test": {
+      "female": {
+        "precision": 0.6555,
+        "recall": 0.6654,
+        "f1-score": 0.6604,
+        "support": 8187
+      },
+      "male": {
+        "precision": 0.5853,
+        "recall": 0.3663,
+        "f1-score": 0.4506,
+        "support": 3811
+      },
+      "unisex": {
+        "precision": 0.6525,
+        "recall": 0.72,
+        "f1-score": 0.6846,
+        "support": 12593
+      }
+    },
+    "trained_at": "2026-10-15T02:10:22+00:00",
+    "sklearn_version": "1.9.0",
+    "model_size_mb": 1.0
+  },
+  "class_priors": {
+    "female": 0.3329,
+    "male": 0.155,
+    "unisex": 0.5121
+  },
+  "index_model": {
+    "model_class": "HistGradientBoostingRegressor",
+    "target": "indice de masculinidad percibida (0 femenino - 1 masculino)",
+    "n_train": 80465,
+    "zone_limits": [
+      0.33,
+      0.67
+    ],
+    "metrics_test_N10": {
+      "mae": 0.1256,
+      "r2": 0.6558,
+      "spearman": 0.8104,
+      "zonas_f1_macro": 0.6762,
+      "zonas_exactitud": 0.6963
+    },
+    "trained_at": "2026-10-15T02:10:40+00:00",
+    "sklearn_version": "1.9.0",
+    "model_size_mb": 0.45
+  }
 }

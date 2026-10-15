@@ -1,4 +1,4 @@
-"""Corre el pipeline completo (EDA -> ETL -> experimentos -> entrenamiento -> evaluacion).
+"""Corre el pipeline completo (EDA -> ETL -> experimentos -> clasificador -> indice -> evaluacion).
 
 Uso: python pipeline/run_all.py        (requiere data/raw/perfumes.csv)
 """
@@ -9,7 +9,8 @@ import sys
 import time
 from pathlib import Path
 
-STEPS = ["01_eda.py", "02_etl.py", "03_experiments.py", "04_train.py", "05_evaluate.py"]
+STEPS = ["01_eda.py", "02_etl.py", "03_experiments.py", "04_train.py", "05_train_index.py", "06_evaluate.py",
+         "../experiments/vote_weights.py"]
 
 
 def main() -> None:
