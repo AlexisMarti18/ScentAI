@@ -684,6 +684,12 @@ Una página web se arma con **tres lenguajes**, cada uno con un rol:
 - **`?.` y `??`:** "acceder solo si existe" y "usar este valor si el otro es nulo".
 - **`textContent` en vez de `innerHTML`:** se usa para insertar texto de forma **segura** (así nadie puede inyectar código malicioso).
 - **Debounce:** esperar un instante (180 ms) a que el usuario deje de mover un control antes de consultar al servidor, para no saturarlo.
+- **`localStorage`:** una pequeña memoria del navegador, propia de cada sitio, donde la página guarda cosas como el tema elegido (claro u oscuro). Sobrevive aunque cierres la pestaña.
+- **`matchMedia`:** permite preguntarle al navegador cosas como "¿el usuario prefiere tema claro?" o "¿pidió menos animaciones?".
+- **`IntersectionObserver`:** una herramienta que avisa **cuándo un elemento entra o sale de la pantalla**. Se usa para mostrar la barra flotante del celular.
+- **`history.replaceState`:** cambia la dirección de la página (por ejemplo, agrega `#modelo`) sin recargarla.
+- **SVG:** un formato de imagen **vectorial** (hecho de líneas y formas, no de píxeles), que se ve nítido a cualquier tamaño. El logo y los íconos son SVG.
+- **Atributos `data-*`:** datos propios que se guardan en un elemento (`data-theme`, `data-zone`) y que el CSS puede leer para cambiar el aspecto.
 
 ## 3.6 Entornos, dependencias y empaquetado
 
@@ -763,8 +769,9 @@ ScentAI/
 │   │   └── schemas.py           Reglas de qué datos se aceptan y se devuelven.
 │   └── frontend/                LA PÁGINA WEB.
 │       ├── index.html           Estructura.
-│       ├── styles.css           Aspecto.
-│       └── app.js               Comportamiento.
+│       ├── styles.css           Aspecto (temas claro y oscuro, adaptable a celular).
+│       ├── app.js               Comportamiento.
+│       └── assets/              Logo (logo.svg) e isotipo/ícono (logo-mark.svg).
 │
 ├── models/                      Los modelos ya entrenados y su información.
 │   ├── model.joblib             Clasificador de la etiqueta.
@@ -1865,7 +1872,7 @@ Entrena con las filas `a` que tengan al menos `n_min` votos, usando la función 
 **Parte 1:** prueba filtros de 1, 3, 5, 10, 15, 20, 30, 50 y 100 votos **sin pesos** (una partición).
 **Parte 2:** compara 8 "esquemas" (sin filtro, filtro mínimo 5, distintos topes, `√votos`, combinaciones) con **3 particiones distintas** (semillas 42, 7 y 123) y promedia.
 
-**Resultado:** filtrar no ayuda; ponderar mejora apenas (~1,5 %). Se elige `√votos con tope 100`. Los resultados quedan en `reports/vote_weights.json` y se muestran también en la pestaña "Sobre el modelo" de la página.
+**Resultado:** filtrar no ayuda; ponderar mejora apenas (~1,5 %). Se elige `√votos con tope 100`. Los resultados quedan en `reports/vote_weights.json` y se muestran también en la pestaña "El modelo" de la página.
 
 ---
 
@@ -2035,7 +2042,7 @@ def model_info():
             info[key] = json.loads(path.read_text(encoding="utf-8"))
     return info
 ```
-**`GET /api/model/info`:** junta los metadatos con los reportes del pipeline (`reports/*.json`) y los devuelve. Es lo que usa la pestaña "Sobre el modelo". **Nada está escrito a mano en la página**: todos los números salen de los reportes reales, así que no pueden quedar desactualizados.
+**`GET /api/model/info`:** junta los metadatos con los reportes del pipeline (`reports/*.json`) y los devuelve. Es lo que usa la pestaña "El modelo". **Nada está escrito a mano en la página**: todos los números salen de los reportes reales, así que no pueden quedar desactualizados.
 
 ```python
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
@@ -2046,110 +2053,173 @@ app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 ## 7.3 `app/frontend/index.html`: la estructura de la página
 
-La página tiene **una cabecera**, **dos pestañas** (Predictor y Sobre el modelo) y **un pie**. Se explica por zonas.
+La página tiene una **barra superior** (logo, pestañas y botón de tema), **dos pestañas** ("Predictor" y "El modelo"), un **pie** y, solo en celular, una **barra flotante** con el resultado. Se explica por zonas.
 
 ### `<head>` (información de la página)
 ```html
-<meta charset="UTF-8">
+<html lang="es" data-theme="dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScentAI · Tendencia de género por acordes</title>
-<link rel="stylesheet" href="styles.css">
+<meta name="theme-color" content="#0f0d12">
+<link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg">
 ```
-- `charset="UTF-8"`: permite acentos y símbolos.
+- `lang="es"`: le avisa al navegador y a los lectores de pantalla que el idioma es español.
+- `data-theme="dark"`: un **atributo propio** (los `data-*` sirven para guardar datos en un elemento) que indica el tema. El CSS lee este valor para elegir los colores.
 - `viewport`: hace que la página se **adapte al ancho del celular**.
-- `<title>`: lo que aparece en la pestaña del navegador.
-- `<link rel="stylesheet">`: conecta el archivo de estilos.
+- `theme-color`: el color con que el celular pinta la barra del navegador.
+- `link rel="icon"`: el **ícono de la pestaña** del navegador (el isotipo en formato SVG).
 
-### La cabecera y las pestañas
 ```html
-<nav class="tabs" role="tablist"> <button class="tab active" ... data-tab="predict">Predictor</button> ... </nav>
-<div id="banner" class="banner" role="alert" hidden></div>
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("scentai-theme"); } catch (e) { }
+    if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
 ```
-Dos botones-pestaña. El `<div id="banner">` es una franja roja, **oculta** (`hidden`), que aparece si hay un error (por ejemplo, "No se pudo predecir").
+**Un script mínimo que corre antes de dibujar la página.** Decide el tema: si el usuario ya eligió uno antes, lo lee de `localStorage` (una pequeña memoria del navegador); si no, mira la preferencia del sistema operativo (`prefers-color-scheme`). Se hace **antes** del primer dibujo para evitar el "parpadeo" (que la página se vea oscura un instante y luego cambie a clara). El `try/catch` es porque algunos navegadores bloquean `localStorage` (por ejemplo, en modo privado): en ese caso simplemente no hay preferencia guardada.
 
-### Pestaña "Predictor": dos tarjetas
-**Tarjeta izquierda (entrada):**
-- Un **contador** `0 / 8` (cuántos acordes elegiste).
-- Un `<div id="presets">`: los **ejemplos rápidos** (los botones los crea JavaScript).
-- Un cuadro de **búsqueda** (`<input id="search">`) con su etiqueta oculta para lectores de pantalla (`class="sr-only"`).
-- `<div id="chips">`: la **nube de botones de acordes** (los crea JS).
-- `<div id="selected">`: los **controles deslizantes** de intensidad de los acordes elegidos.
-- Un botón "Limpiar todo".
+### Cabecera y pestañas
+```html
+<a class="skip-link" href="#main">Saltar al contenido</a>
+<header class="topbar"> ... brand ... <nav class="tabs" role="tablist"> ... </nav> <button id="theme-toggle"> ... </header>
+```
+- **`skip-link`:** un enlace oculto que aparece al presionar `Tab` en el teclado y permite **saltar directo al contenido** sin recorrer la barra superior (accesibilidad).
+- **`brand`:** el logo (`assets/logo-mark.svg`) y el nombre "Scent**AI**" (la parte "AI" va en cursiva y con el degradé de la marca).
+- **Pestañas:** dos botones con `role="tab"`, `aria-selected` (cuál está activa) y `aria-controls` (qué panel controlan). El inactivo tiene `tabindex="-1"` para que la navegación con flechas del teclado funcione bien.
+- **`theme-toggle`:** el botón del sol/luna. Su ícono lo inserta JavaScript.
 
-**Tarjeta derecha (resultado).** Tiene dos estados: `result-empty` ("Elegí al menos un acorde…") y `result` (oculto hasta que haya predicción). Dentro de `result`:
-- `verdict`: el título grande ("Tiende a masculino").
-- `verdict-sub`: el índice en texto.
-- **El espectro:** `spectrum-track` (la barra) con `spectrum-marker` (el marcador blanco), y debajo las tres etiquetas de zona.
-- `duel`: la barra "femenino vs. masculino".
-- `bars`: las probabilidades por etiqueta.
-- `influences`: la lista de acordes que más pesan.
-- Un aviso (`disclaimer`) de que es orientación estadística.
+### El aviso de error y el "anunciador"
+```html
+<div id="banner" class="banner" role="alert" hidden> ... <button id="banner-close"> ... </div>
+<p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+```
+- `banner`: la franja roja de error (oculta con `hidden`), ahora con un botón para **cerrarla**.
+- `sr-status`: un párrafo invisible (`sr-only`) donde JavaScript escribe mensajes como "Ejemplo Floral dulce cargado" o "Tiende a masculino. Índice 0,72". Los **lectores de pantalla** lo leen en voz alta sin interrumpir (`aria-live="polite"`).
 
-`aria-live="polite"` hace que un lector de pantalla **anuncie** los cambios del resultado sin interrumpir.
+### Pestaña "Predictor"
+**El "hero" (portada):** una etiqueta "Para perfumistas", el título grande (`<h1>`: "¿Hacia qué lado del espectro cae tu perfume?") y una bajada explicativa.
 
-### Pestaña "Sobre el modelo"
-Varias tarjetas con **tablas vacías** que JS rellena con los reportes: el resumen del modelo y sus cuatro indicadores (`tiles`), la comparación índice vs. clasificador (`cmp-table`), el estudio de pesos (`weights-table`), el análisis etiqueta vs. percepción (`bias-text`, `exp-table`) y los datos del clasificador (`cv-table`, `cm-table`, `class-table`).
+**El "workspace" (área de trabajo)** tiene dos columnas:
+
+*Columna izquierda (tarjeta `builder`), con dos pasos numerados:*
+1. **"Elegí los acordes":** el contador `n / 8`; los **ejemplos** (`#presets`, ahora tarjetas con nombre y tres acordes de muestra); el **buscador** con ícono de lupa y un botón para borrar el texto; una línea de estado (`chips-status`: "72 acordes disponibles" o "5 de 72 acordes"); y la nube de **botones de acordes** (`#chips`) dentro de un contenedor con scroll.
+2. **"Ajustá la intensidad":** el botón "Limpiar todo", las filas con deslizadores (`#selected`) y, mientras no hay ninguno, un cuadro vacío con una explicación (`selected-empty`).
+
+*Columna derecha (`aside.summary`, la tarjeta de resultado):*
+- **Estado vacío** (`result-empty`): el isotipo, "Tu resultado aparece acá" y un botón **"Probar un ejemplo"** (carga el primer ejemplo).
+- **Resultado** (`#result`, oculto hasta que haya predicción): el título "Posición en el espectro", el veredicto (`verdict`) junto al **número del índice** (`index-num`, con la etiqueta "índice"), el **espectro** (`spectrum-track` con su `spectrum-marker`, más la escala con "Femenino / Unisex / Masculino"), una frase explicativa (`verdict-sub`) y el aviso de que es orientación estadística.
+
+**La "lectura detallada"** (`#details`, oculta hasta que haya resultado) está **debajo**, a todo el ancho, y tiene tres tarjetas: *Femenino vs. masculino* (`duel`), *Probabilidad según la etiqueta de género* (`bars`) y *Qué acordes pesan más* (`influences`, con un eje "← Femenino / Masculino →" debajo).
+
+> **Cambio de diseño:** antes todo el resultado estaba apretado en una tarjeta. Ahora arriba queda **lo esencial** (posición e índice) y debajo el **detalle**, lo que hace la pantalla más clara.
+
+### Pestaña "El modelo"
+Una portada ("Qué hay detrás del resultado") y varias tarjetas con **tablas vacías** que JavaScript rellena con los reportes: los cuatro indicadores del modelo de índice (`tiles`, con "esqueletos" de carga mientras llegan los datos), la comparación índice vs. clasificador (`cmp-table`), el estudio de pesos (`weights-table`), el análisis etiqueta vs. percepción (`bias-text`, `exp-table`) y los datos del clasificador (`cv-table`, `cm-table`, `class-table`).
+
+### Pie y barra flotante
+- **`footer`:** el isotipo y la leyenda del proyecto.
+- **`minibar`:** un botón fijo en la parte de abajo que **solo aparece en celular**, cuando ya bajaste y el resultado quedó fuera de pantalla. Muestra el veredicto, el índice y una mini barra con el marcador; al tocarlo, vuelve al resultado.
 
 ```html
 <script src="app.js"></script>
 ```
-Al final se carga el JavaScript (al final para que los elementos de arriba ya existan cuando el código los busque).
+Al final se carga el JavaScript, para que los elementos de arriba ya existan cuando el código los busque.
 
 ---
 
 ## 7.4 `app/frontend/styles.css`: el aspecto
 
-### Variables de color (`:root`)
+El archivo está organizado en secciones (con comentarios de cabecera). Lo más importante:
+
+### Los "tokens" de diseño (variables) y los dos temas
 ```css
 :root {
-  --bg: #0b0b12;  --card: #14141f;  --text: #f1f5f9;
-  --primary: #a78bfa;  --female: #f472b6;  --male: #60a5fa;  --unisex: #fbbf24;
+  --bg: #0f0d12;  --surface: #17141c;  --text: #f3eee6;  ...
+  --female: #f472a6;  --unisex: #f4c76a;  --male: #5aa9f7;
+  --female-t: #f58db6;  --unisex-t: #f4c76a;  --male-t: #7bb8f8;
+  --s-1: 0.25rem; ... --s-7: 3rem;
   color-scheme: dark;
 }
+:root[data-theme="light"] { --bg: #f6f1ea;  --surface: #fffdf9;  --text: #1d1822; ... color-scheme: light; }
 ```
-**Variables CSS**: nombres para colores y medidas que se reutilizan con `var(--female)`. Si querés cambiar el rosa del femenino, lo cambiás **en un solo lugar**. `color-scheme: dark` le avisa al navegador que es un tema oscuro (para que los controles nativos combinen).
+- Las **variables CSS** (`--nombre`) son valores con nombre que se reutilizan con `var(--nombre)`. Si cambiás una, cambia en toda la página.
+- **Dos temas:** el bloque `:root` define el **oscuro** (por defecto) y `:root[data-theme="light"]` **redefine las mismas variables** para el claro. Cuando JavaScript cambia `data-theme`, toda la página cambia de colores sola.
+- **Colores de datos con dos versiones:** `--female` (para **rellenos**: barras, gráficos) y `--female-t` (para **texto**). En el tema claro el texto necesita colores **más oscuros** para que se lea bien sobre fondo claro (contraste), mientras que el relleno puede ser más vivo. Lo mismo para unisex y masculino.
+- **Escala de espaciado:** `--s-1` a `--s-7` son múltiplos de 4 píxeles; usar siempre los mismos valores da **ritmo visual** consistente.
+- **Tipografías:** se usan las que ya trae el sistema (`system-ui`, y una serif tipo "Palatino/Georgia" para los títulos). No se descarga nada de internet.
+
+La idea de diseño, escrita en el propio archivo: el **degradé rosa → dorado → azul del espectro es el único color de marca**; el resto de la interfaz es neutro (marfil y tinta), así los colores de datos significan **siempre lo mismo** (rosa = femenino, dorado = intermedio, azul = masculino).
 
 ### Reglas generales
-- `* { box-sizing: border-box; margin: 0; padding: 0; }`: reinicia márgenes y hace que el ancho incluya los bordes (más fácil de calcular).
-- `body`: fondo, color de texto, tipo de letra y altura de línea.
-- `.wrap`: centra el contenido con ancho máximo de 1120 px y un margen de 16 px.
-- `.sr-only`: oculta algo **visualmente** pero lo deja disponible para lectores de pantalla.
+- `[hidden] { display: none !important; }`: garantiza que lo marcado `hidden` **se oculte siempre**, aunque otra regla le diga lo contrario.
+- `body::before`: una **"aureola" decorativa**: dos luces suaves (rosa a la izquierda, azul a la derecha) con `radial-gradient` detrás del título.
+- `:focus-visible`: un **contorno visible** cuando navegás con el teclado, igual en todos los controles.
+- `.sr-only`, `.skip-link`: elementos para lectores de pantalla y para saltar contenido.
 
-### Componentes principales
-| Regla | Qué hace |
+### Componentes
+| Parte | Qué hace |
 |---|---|
-| `.tabs`, `.tab`, `.tab.active` | Las pestañas; la activa tiene una línea violeta abajo. |
-| `.pane` / `.pane.active` | Cada panel; solo el activo se muestra (`display: block`). |
-| `.grid` | Dos columnas (`1.1fr 1fr`) con separación de 16 px. |
-| `.card` | Las tarjetas: fondo, borde y esquinas redondeadas. `min-width: 0` evita que se desborden. |
-| `.chip` | Los botones de acordes (píldoras). Cuando están elegidos (`aria-pressed="true"`) se pintan de violeta. |
-| `.row` | Cada fila de intensidad: nombre / deslizador / valor / botón de quitar (4 columnas). |
-| `.verdict` | El título grande del resultado. |
-| `.bar-row`, `.track`, `.fill` | Las barras de probabilidad: pista gris y relleno coloreado con transición animada. |
-| `.tile`, `table`, `th`, `td` | Los indicadores y tablas de la pestaña del modelo. |
+| `.btn`, `.icon-btn` | Botones (primario, secundario, "fantasma" y de solo ícono). |
+| `.topbar` | Barra superior **pegajosa** (`position: sticky`): queda fija arriba al bajar. Tiene un efecto de vidrio esmerilado (`backdrop-filter: blur`). |
+| `.brand-ai` | El "AI" del nombre, con el degradé de la marca **recortado al texto** (`background-clip: text`). |
+| `.tabs` | Las pestañas como un **control segmentado**: la activa (`aria-selected="true"`) tiene fondo propio. |
+| `.pane` / `.pane.active` | Cada panel; solo el activo se muestra, con una pequeña animación de entrada. |
+| `.workspace` | La cuadrícula de **dos columnas** (constructor / resultado). La columna del resultado es `position: sticky`: **te sigue al hacer scroll** en escritorio. |
+| `.step`, `.step-num` | Los pasos numerados 1 y 2. |
+| `.presets`, `.preset` | Los ejemplos como **tarjetas** en tres columnas; el seleccionado (`aria-current="true"`) tiene el borde resaltado. |
+| `.chips-scroll`, `.chip` | La nube de acordes con scroll; los elegidos se rellenan con el color de acento y muestran un tilde. |
+| `.row` | Cada acorde elegido: nombre, deslizador, valor y botón de quitar. |
+| `.tile`, `table`, `.cm` | Los indicadores y tablas de la pestaña del modelo; la fila ganadora (`tr.best`) lleva una marca a la izquierda. |
+
+### El deslizador personalizado
+```css
+input[type="range"] { --pct: 50%; ... }
+input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent) var(--pct), var(--surface-3) var(--pct));
+}
+```
+Los deslizadores nativos no pintan "lo ya recorrido". Acá se usa una **variable `--pct`** que **JavaScript actualiza** con la posición del deslizador, y un degradé de dos colores con un corte justo en ese porcentaje: la parte izquierda aparece rellena. Hay reglas separadas para Chrome/Edge (`-webkit-`) y Firefox (`-moz-`), porque cada navegador nombra distinto las partes del control.
 
 ### El espectro
 ```css
-.spectrum-track {
-  position: relative; height: 16px; border-radius: 99px;
-  background: linear-gradient(90deg, var(--female) 0%, var(--female) 28%, var(--unisex) 38%,
-                              var(--unisex) 62%, var(--male) 72%, var(--male) 100%);
-}
-.spectrum-marker { position: absolute; top: -6px; width: 6px; height: 28px; margin-left: -3px;
-                   background: #fff; transition: left 0.25s ease; }
+.spectrum-track { background: linear-gradient(90deg, var(--female) 0%, var(--female) 18%, var(--unisex) 40%, var(--unisex) 60%, var(--male) 82%, var(--male) 100%); }
+.spectrum-track::before { left: 33%; }   .spectrum-track::after { left: 67%; }
+.spectrum-marker { position: absolute; transform: translate(-50%, -50%); transition: left 0.3s ...; }
 ```
-- La barra es un **degradé horizontal** (`linear-gradient(90deg, ...)`): rosa a la izquierda, amarillo en el centro, azul a la derecha. Los porcentajes (28 %, 38 %, 62 %, 72 %) indican dónde empieza y termina cada color; las transiciones caen cerca de 33 % y 67 %, los límites de las zonas.
-- El marcador blanco se posiciona con `position: absolute` y un `left` en porcentaje que **fija JavaScript** (índice × 100). `transition: left 0.25s` lo hace **deslizarse** suavemente.
+- La barra es un **degradé horizontal** rosa → dorado → azul.
+- Los pseudo-elementos `::before` y `::after` dibujan **dos separadores finos** en el **33 %** y el **67 %**: son **los límites de las zonas** (0,33 y 0,67). Si algún día cambian esos límites en `perception.py`, hay que mover estos dos valores.
+- El **marcador** es un círculo; JavaScript fija su `left` en porcentaje (índice × 100), y `transition` lo hace **deslizarse** con suavidad.
+- La escala de abajo tiene tres columnas proporcionales (33 / 34 / 33) y **resalta la zona actual**: `.spectrum[data-zone="male"] [data-zone="male"]` significa "dentro de un espectro cuya zona es 'male', pintá la etiqueta 'male' de su color". El veredicto se colorea de forma parecida con `[data-zone="..."] .verdict`.
 
-### Adaptación a celulares y accesibilidad
+### Las barras de influencia "divergentes"
 ```css
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } ... }
-@media (prefers-reduced-motion: reduce) { .fill { transition: none; } ... }
+.dtrack::before { left: 50%; ... }          /* línea central */
+.dbar.female { right: 50%; background: var(--female); }
+.dbar.male   { left: 50%;  background: var(--male); }
 ```
-- Si la pantalla mide **800 px o menos**, las dos columnas pasan a **una sola** (una arriba de la otra).
-- Si el usuario pidió "reducir movimiento" en su sistema, se **desactivan las animaciones**.
-- `.tab:focus-visible, .chip:focus-visible, ...{ outline: 2px solid var(--primary) }`: un **contorno visible** cuando navegás con el teclado (accesibilidad).
-- `.grid > * { min-width: 0; }`: evita que contenido ancho (las tablas) haga que la página tenga **scroll horizontal** en celulares (un problema real que se corrigió).
+Cada acorde tiene una pista con una **línea en el centro**: si empuja hacia femenino, su barra **crece hacia la izquierda** (rosa); hacia masculino, **hacia la derecha** (azul); si es neutro, solo un puntito. Así se ve de un vistazo hacia qué lado empuja cada acorde y cuánto.
+
+### Los "esqueletos" de carga
+`.skeleton` con `animation: shimmer`: mientras llegan los datos del servidor, se muestran cajas grises con un **brillo que se desplaza** (`@keyframes shimmer`), en vez de un espacio vacío. Es una pista visual de que "está cargando".
+
+### La barra flotante
+```css
+.minibar { position: fixed; bottom: ...; display: none; }
+@media (max-width: 960px) { .minibar:not([hidden]) { display: flex; } body.has-minibar { padding-bottom: 84px; } }
+```
+Está **fija** abajo de la pantalla (`position: fixed`). Solo se muestra en pantallas de **960 px o menos** y cuando JavaScript no la tiene oculta. `body.has-minibar` agrega espacio abajo para que no tape el contenido.
+
+### Adaptación a distintos tamaños
+Los `@media` son reglas que se activan según el tamaño de pantalla:
+- **≤ 960 px:** las dos columnas pasan a una; el resultado deja de ser pegajoso; aparece la barra flotante.
+- **≤ 720 px:** las cuadrículas de dos columnas pasan a una.
+- **≤ 560 px:** menos espacios; cada fila de acorde se reorganiza en dos renglones (nombre y quitar arriba, deslizador y valor abajo).
+- **≤ 480 px:** los ejemplos pasan a dos columnas.
+- **≤ 380 px:** se oculta el nombre "ScentAI" (queda solo el logo) para que entren las pestañas.
+- **`pointer: coarse`:** en pantallas **táctiles** los botones son más grandes (más fáciles de tocar).
+- **`prefers-reduced-motion: reduce`:** si el usuario pidió menos movimiento en su sistema, se **desactivan las animaciones**.
 
 ---
 
@@ -2160,107 +2230,104 @@ Está dividido en secciones comentadas. Se explican en orden.
 ### Constantes y estado
 ```javascript
 "use strict";
-const CLASS_ES = { female: "Femenino", male: "Masculino", unisex: "Unisex" };
-const CLASS_COLOR = { female: "var(--female)", ... };
-const ZONE_TEXT = { female: "Tiende a femenino", unisex: "Zona intermedia (unisex)", male: "Tiende a masculino" };
+const CLASS_ES = { female: "Femenino", ... };       const ZONE_TEXT = { female: "Tiende a femenino", ... };
+const CLASS_COLOR = { female: "var(--female)", ... }; const CLASS_TEXT = { female: "var(--female-t)", ... };
+const ZONE_LIMITS = [0.33, 0.67];   const NEAR_LIMIT = 0.04;
 const PRESETS = { "Fresco aromático": {...}, "Floral dulce": {...}, "Amaderado ahumado": {...} };
-const state = { vocab: [], max: 8, selected: new Map(), filter: "", timer: null, seq: 0 };
+const ICONS = { sun: '<circle .../>', moon: '...', search: '...', ... };
 ```
-- `"use strict"` activa un modo más estricto de JavaScript que **atrapa errores comunes**.
-- Los diccionarios traducen los nombres internos al español y a colores.
-- `PRESETS` son los tres **ejemplos rápidos** (cada uno es un diccionario `acorde → intensidad`).
-- `state` es **la "memoria" de la página**: la lista de acordes válidos, el máximo, los acordes **seleccionados** (un `Map`), el texto del buscador, un `timer` (para el retardo) y `seq` (un contador, ver abajo).
+- Los diccionarios traducen nombres internos al español y a colores (de relleno y de texto).
+- **`ZONE_LIMITS` es una copia** de los límites de `perfume_gender/perception.py`. Se usa solo para **avisar cuando el índice está cerca de un borde** (a menos de `NEAR_LIMIT` = 0,04). Un comentario del código lo aclara. Si se cambian los límites, hay que cambiarlos en **tres lugares**: `perception.py`, esta constante y los separadores del CSS.
+- `PRESETS`: los tres **ejemplos**.
+- `ICONS`: el dibujo (en SVG) de cada ícono de la interfaz (sol, luna, lupa, cruz, tilde…). Así no hace falta descargar ninguna librería de íconos.
+
+```javascript
+const state = { vocab: [], max: 8, selected: new Map(), filter: "", timer: null, seq: 0,
+                chipEls: new Map(), rows: new Map(), presetEls: new Map(), hasResult: false, summaryVisible: true, lastZone: null };
+const dom = {};
+```
+`state` es **la memoria de la página**. Además de lo que ya existía (acordes válidos, seleccionados, buscador, temporizador y contador de pedidos), ahora guarda **referencias a elementos ya creados** (`chipEls`, `rows`, `presetEls`) para **reutilizarlos** en lugar de volver a dibujar todo, si hay resultado (`hasResult`), si el resultado se ve en pantalla (`summaryVisible`) y la última zona (`lastZone`). `dom` guarda los nodos del resultado que se crean **una sola vez** y después solo se actualizan.
 
 ### Herramientas de ayuda
-```javascript
-const $ = (id) => document.getElementById(id);
-function el(tag, props = {}, ...children) { ... }
-const fmt = (x, d = 2) => x.toLocaleString("es-AR", {...});
-const pct = (x, d = 1) => fmt(x * 100, d) + "%";
-```
-- `$("verdict")` es un atajo para buscar un elemento por su id.
-- **`el(tag, props, ...hijos)`** es una función propia que **crea elementos HTML** de forma cómoda. Ej.: `el("button", {class: "chip", text: "woody"})` crea `<button class="chip">woody</button>`. Usa `textContent` (no `innerHTML`) → **seguro** contra inyección de código.
-- `fmt` formatea números **al estilo argentino** (coma decimal, punto de miles): `0,72`.
-- `pct` convierte 0,7 en `70,0%`.
+- **`$(id)`:** atajo para buscar un elemento por su `id`.
+- **`el(tag, props, ...hijos)`:** función propia que **crea elementos HTML**. Usa `textContent` (no `innerHTML`) para el texto, lo que es **seguro** contra inyección de código.
+- **`icon(nombre)`:** construye un ícono SVG a partir de `ICONS`. Aquí sí se usa `innerHTML`, pero **solo con constantes del propio código**, nunca con datos externos.
+- **`fmt`, `pct`, `nEs`:** formatean números al estilo argentino (coma decimal, punto de miles).
+- **`announce(msg)`:** escribe en el párrafo `sr-status` para que los lectores de pantalla lo anuncien.
+- **`showBanner(msg)`:** muestra u oculta la franja de error.
+- **`api(path, options)`:** el pedido único al servidor (`fetch`); si la respuesta no es exitosa, lanza un error con el mensaje del servidor.
 
-### Hablar con el servidor
-```javascript
-async function api(path, options) {
-  const res = await fetch(path, options);
-  if (!res.ok) { ...lanza un Error con el mensaje del servidor... }
-  return res.json();
-}
-```
-**`api`.** Función única para todos los pedidos. `fetch` envía el pedido; `await` espera la respuesta; si el código no es 200 (`!res.ok`), extrae el mensaje del servidor (el campo `detail`) y lanza un error; si todo salió bien, devuelve el JSON ya convertido en objeto.
+### El tema (claro / oscuro)
+- **`applyTheme(theme, persist)`:** cambia `data-theme` en el documento, actualiza el texto del botón (accesibilidad), cambia el ícono (sol ↔ luna) y el `theme-color` de la barra del celular. Solo **guarda** la elección en `localStorage` si `persist` es verdadero (o sea, si el usuario la eligió a mano).
+- **`initTheme()`:** conecta el botón y **escucha los cambios del sistema operativo** (`matchMedia(...).addEventListener("change", ...)`): si el usuario nunca eligió un tema, la página lo acompaña.
 
 ### Las pestañas
-Recorre los botones `.tab`, y al hacer clic marca cuál está activa (`classList.toggle`), actualiza `aria-selected` (accesibilidad) y muestra solo el panel correspondiente.
+- **`selectTab(btn)`:** marca la pestaña activa (`aria-selected`, y `tabIndex` para que solo la activa esté en el orden del teclado), muestra el panel correspondiente, actualiza la dirección con `history.replaceState` (la pestaña "El modelo" queda como `#modelo`, así se puede **enlazar directo**) y vuelve arriba.
+- **`initTabs()`:** conecta los clics y el **teclado**: flechas izquierda/derecha, `Home` y `End` cambian de pestaña (es la convención de accesibilidad para pestañas). Si la dirección ya trae `#modelo`, abre esa pestaña al cargar.
 
 ### Elegir acordes
-```javascript
-function renderChips() { ... }
-function toggle(name, intensity = 70) { ... }
-function renderSelected() { ... }
-function changed() { renderChips(); renderSelected(); schedulePredict(); }
-function applyPreset(preset) { ... }
-```
-- **`renderChips`:** dibuja los botones de acordes. Filtra por lo que se escribió en el buscador; marca los elegidos (`aria-pressed`); si ya hay 8 elegidos, **deshabilita** los demás (`disabled`).
-- **`toggle`:** al tocar un acorde, lo agrega (con intensidad inicial 70) o lo quita, siempre que no se pase del máximo.
-- **`renderSelected`:** dibuja una **fila por acorde elegido** con nombre, deslizador (`<input type="range">` de 1 a 100), valor y botón "×". Al mover el deslizador (`oninput`) actualiza el valor y programa una predicción. También actualiza el contador `n / 8` y muestra/oculta "Limpiar todo".
-- **`changed`:** cualquier cambio redibuja todo y programa una predicción.
-- **`applyPreset`:** reemplaza la selección por un ejemplo (descartando acordes que no estén en el vocabulario y tomando como máximo 8).
+- **`skeletonChips`:** mientras llega el vocabulario, muestra 20 botones "esqueleto" de distinto ancho.
+- **`buildChips`:** **crea los 72 botones una sola vez** y los guarda en `state.chipEls`.
+- **`updateChips`:** en vez de volver a dibujar, **actualiza los botones existentes**: oculta los que no coinciden con la búsqueda, marca los elegidos (`aria-pressed`) y les agrega un **tilde**, deshabilita los demás si ya hay 8, y actualiza el texto de estado ("Llegaste al máximo de 8 acordes…" o "5 de 72 acordes"). Se hace así para **no perder el foco del teclado**: si se destruyeran y recrearan los botones, quien navega con `Tab` perdería su posición.
+- **`toggle(name)`:** agrega (con intensidad inicial 70) o quita un acorde.
+- **`removeAccord(name)`:** quita un acorde y **mueve el foco** al siguiente (o al buscador), porque el botón que se usó desaparece.
+- **`setFill(slider)`:** calcula qué porcentaje del deslizador está recorrido y lo escribe en la variable CSS `--pct` (para que se pinte la parte izquierda).
+- **`buildRow` / `renderSelected`:** crean una fila por acorde (nombre, deslizador, valor, quitar) y **reutilizan las existentes**: las que ya no están se eliminan, las nuevas se crean, se **reordenan** si hace falta, y si un ejemplo cambió una intensidad se actualiza el deslizador. También actualizan el contador `n / 8` (con la clase `full` al llegar al máximo).
+- **`changed()`:** cualquier cambio actualiza botones, filas y ejemplos, y programa una predicción.
+
+### Los ejemplos
+- **`presetEntries`:** toma los acordes de un ejemplo que existan en el vocabulario (máximo 8).
+- **`updatePresets`:** marca (`aria-current`) el ejemplo cuyo contenido coincide **exactamente** con lo que hay elegido, para que se vea cuál está activo.
+- **`applyPreset(label)`:** reemplaza la selección por ese ejemplo y lo anuncia ("Ejemplo Floral dulce cargado").
 
 ### Predecir
 ```javascript
-function schedulePredict() {
-  clearTimeout(state.timer);
-  state.timer = setTimeout(predict, 180);
-}
+function schedulePredict() { clearTimeout(state.timer); state.timer = setTimeout(predict, 180); }
 ```
-**"Debounce" (retardo antiparpadeo).** Cada cambio cancela el temporizador anterior y arranca uno nuevo de 180 ms. Si movés un deslizador rápido, **no se hace un pedido por cada píxel**, sino uno cuando te frenás. Ahorra carga al servidor.
+**"Debounce" (retardo antiparpadeo):** cada cambio cancela el temporizador anterior y arranca uno de 180 ms; así, al mover un deslizador **no se hace un pedido por cada píxel**, sino uno cuando te frenás.
 
 ```javascript
 async function predict() {
-  if (!state.selected.size) { ...mostrar "elegí al menos un acorde"...; return; }
+  if (!state.selected.size) { ++state.seq; ...ocultar resultado...; return; }
   const seq = ++state.seq;
-  const body = { accords: [...state.selected].map(([name, intensity]) => ({ name, intensity })) };
-  try {
-    const data = await api("/api/predict", { method: "POST", headers: {...}, body: JSON.stringify(body) });
-    if (seq !== state.seq) return;
-    showBanner("");
-    renderResult(data);
-  } catch (err) { showBanner("No se pudo predecir: " + err.message); }
+  ... POST /api/predict ...
+  if (seq !== state.seq) return;   // llegó tarde: se descarta
+  renderResult(data);
+  ... finally: quitar aria-busy ...
 }
 ```
-**`predict`.**
-1. Si no hay acordes, muestra el mensaje inicial.
-2. **`seq`:** cada pedido recibe un **número de secuencia**. Si llegara tarde la respuesta de un pedido viejo, después de haber lanzado uno nuevo (`seq !== state.seq`), **se descarta**. Evita que el resultado "salte" a un estado anterior.
-3. Arma el cuerpo en el formato de la API y lo envía con **POST** (`JSON.stringify` convierte el objeto en texto JSON).
-4. Si hay error, lo muestra en la franja roja.
+- Si no hay acordes, oculta el resultado y **también incrementa `seq`**, para que cualquier respuesta que estuviera en camino **se descarte** (no debe aparecer un resultado de acordes que ya no están).
+- **`seq`** es un número de secuencia por pedido: si una respuesta vieja llega después de lanzar una nueva, se ignora.
+- Mientras espera, marca la tarjeta con `aria-busy` (para lectores de pantalla); lo quita al terminar (`finally` se ejecuta siempre, con éxito o con error).
+- Los errores se muestran en la franja roja, **solo si el pedido es el más reciente**.
 
-### Mostrar el resultado (`renderResult`)
-1. **El espectro:** escribe el título (`ZONE_TEXT[zona]`), lo pinta del color de la zona, escribe `Índice 0,72…` y **mueve el marcador**: `marker.style.left = índice × 100 %`. También actualiza `aria-label` para lectores de pantalla.
-2. **Femenino vs. masculino:** crea una barra de dos tramos cuyos anchos son los porcentajes, y las etiquetas debajo.
-3. **Probabilidades por etiqueta:** una fila por clase con su barra y, a la derecha, el porcentaje y el *lift* (`×0,5`).
-4. **Influencias:** hasta 8 filas con el nombre del acorde, hacia dónde empuja (Masculino / Femenino / Neutro) y `+8 pts` (el efecto del índice × 100 redondeado).
+### Mostrar el resultado
+- **`neighbourZone(index, zone)`:** si el índice está a menos de 0,04 de un límite (0,33 o 0,67), devuelve **cuál es la zona vecina**. Con eso la página escribe: *"Está cerca del límite con la zona unisex: un pequeño cambio de intensidad podría cambiar la lectura."* Es una forma honesta de decir que **los límites son una convención** y que un resultado pegado al borde es poco firme.
+- **`buildResultDom()`:** crea **una sola vez** los elementos de la lectura "femenino vs. masculino" y de las tres barras de probabilidad.
+- **`renderResult(data)`**, en orden:
+  1. **Espectro:** escribe `data-zone` en el resultado y el espectro (de ahí sale el color), el veredicto, el número del índice, mueve el marcador (`left = índice × 100 %`), actualiza la descripción accesible y la frase (con el aviso de borde si corresponde). Solo **anuncia por voz** cuando **cambia la zona** (para no repetir lo mismo en cada movimiento).
+  2. **Femenino vs. masculino:** actualiza los dos porcentajes y los anchos de la barra de dos tramos.
+  3. **Probabilidades por etiqueta:** actualiza las tres barras y el *lift* (`×0,5`).
+  4. **Influencias:** dibuja hasta 8 filas. Para cada una calcula los puntos (índice × 100, con signo `+` o `−`), arma una descripción accesible ("woody: empuja hacia masculino, +6 pts") y fija el ancho de la barra **proporcional al mayor efecto** (`maxAbs`): el acorde de mayor influencia ocupa la mitad de la pista y los demás, una proporción.
+  5. **Barra flotante:** actualiza su veredicto, índice, color y marcador.
+
+### La barra flotante (celular)
+- **`updateMinibar()`:** se muestra si **hay resultado y la tarjeta del resultado no está a la vista**.
+- **`initMinibar()`:** usa un **`IntersectionObserver`** (una herramienta del navegador que avisa **cuándo un elemento entra o sale de la pantalla**) para saber si la tarjeta del resultado se ve (al menos 20 %). Al tocar la barra, la página **vuelve al resultado** con scroll suave (o directo, si el usuario pidió menos movimiento).
 
 ### La pestaña del modelo (`renderModel`)
-Recibe lo que devolvió `/api/model/info` y **rellena todas las tablas**: los cuatro indicadores del modelo de índice, la tabla A→B por umbral de votos, el estudio de pesos (resaltando la fila `pesos sqrt`), el texto del sesgo de la etiqueta (con los porcentajes leídos del reporte), el experimento de notas, y las tablas del clasificador (validación cruzada, matriz de confusión y rendimiento por clase). Si algún reporte no existe, simplemente se omite esa parte (`if (idx) {...}`).
+Recibe lo que devolvió `/api/model/info` y **rellena** los cuatro indicadores (ahora cada uno con una **descripción corta** debajo, por ejemplo "Qué tan bien ordena los perfumes de femenino a masculino (1 = orden perfecto)"), la tabla A → B por umbral de votos, el estudio de pesos (resaltando la fila `pesos sqrt`), el texto del sesgo de la etiqueta (porcentajes leídos del reporte), el experimento de notas y las tablas del clasificador. Los encabezados de tabla llevan `scope="col"` (accesibilidad). Si un reporte no existe, esa parte se omite. **Nada está escrito a mano**: todo sale de la API.
 
-### El arranque (`init`)
-```javascript
-async function init() {
-  $("search").addEventListener("input", ...);
-  $("clear").addEventListener("click", ...);
-  for (const [label, preset] of Object.entries(PRESETS)) { ...crear botones de ejemplo... }
-  renderSelected();
-  try { const data = await api("/api/accords"); state.vocab = data.accords; ...; renderChips(); }
-  catch (err) { showBanner("No se pudo cargar el modelo: " + err.message); return; }
-  try { renderModel(await api("/api/model/info")); } catch (err) { ... }
-}
-init();
-```
-**Lo primero que ocurre al abrir la página:** conecta el buscador y el botón "Limpiar", crea los botones de ejemplos, pide la **lista de acordes** al servidor y dibuja los botones; luego pide la **información del modelo** para la otra pestaña. Si falla el primer pedido (servidor apagado), muestra el error en la franja roja. Un mensaje como **"Failed to fetch"** en la página significa que el navegador no pudo conectarse al servidor (por ejemplo, porque no estaba corriendo).
+### Los controles y el arranque (`initControls`, `init`)
+- **`initControls`:** conecta el buscador (con un botón para borrarlo y la tecla `Esc`), el botón "Limpiar todo" (que devuelve el foco al buscador y lo anuncia), el cierre del aviso, los botones de ejemplos (cada uno muestra los tres primeros acordes) y "Probar un ejemplo".
+- **`init`:** al abrir la página: coloca los íconos (recorre los elementos con `data-icon` y les inserta el SVG), inicia tema, pestañas, controles y barra flotante, muestra los esqueletos, pide la **lista de acordes** (y crea los botones) y después la **información del modelo**. Si falla el primer pedido (servidor apagado), muestra en el panel de acordes "No se pudieron cargar los acordes" y la franja roja. Un mensaje como **"Failed to fetch"** significa que el navegador no pudo conectarse al servidor (por ejemplo, porque no estaba corriendo).
+
+### Accesibilidad: resumen de lo que hace la interfaz
+Es una parte del diseño que vale la pena conocer, porque no se ve pero importa:
+- **Teclado:** todo se puede usar sin mouse; hay enlace para saltar al contenido, contorno de foco visible y flechas para las pestañas.
+- **Lectores de pantalla:** etiquetas (`aria-label`), regiones que anuncian cambios (`aria-live`) y descripciones de cada barra y del espectro.
+- **Preferencias del usuario:** tema claro/oscuro del sistema, y menos animaciones si lo pidió.
+- **Contraste:** colores de texto distintos de los de relleno, para que se lea bien en ambos temas.
 
 ---
 
@@ -2727,7 +2794,7 @@ La media **engaña** por unos pocos perfumes con miles de votos; el perfume típ
 
 **Lectura:** ponderar mejora el error en ≈ 1,5 %. Es una mejora **chica**, pero usa todas las filas con índice y no obliga a elegir un umbral arbitrario.
 
-## 9.7 La pestaña "Sobre el modelo" de la página
+## 9.7 La pestaña "El modelo" de la página
 
 Cada tabla de esa pestaña sale de un reporte:
 
@@ -2761,11 +2828,12 @@ Cada tabla de esa pestaña sale de un reporte:
 
 | Quiero cambiar… | Dónde | Qué hay que tener en cuenta |
 |---|---|---|
-| Los **límites de las zonas** (0,33 / 0,67) | `ZONE_LIMITS` en `perfume_gender/perception.py` | Hay que **reentrenar** (`python pipeline/run_all.py`), actualizar los gráficos de la página (el degradé en `styles.css`), el test de zonas y el README. |
+| Los **límites de las zonas** (0,33 / 0,67) | `ZONE_LIMITS` en `perfume_gender/perception.py` **y** sus dos copias en la interfaz: `ZONE_LIMITS` en `app/frontend/app.js` y los separadores del espectro (`left: 33%` / `67%`) en `styles.css` | Hay que **reentrenar** (`python pipeline/run_all.py`), actualizar el test de zonas y el README. Los tres lugares tienen que coincidir. |
 | El **máximo de acordes** | `MAX_ACCORDS` en `perfume_gender/config.py` | El modelo se entrenó con perfiles de hasta 8 acordes; subirlo a 12 no tiene respaldo en los datos. |
 | El **peso de los votos** | `vote_weight` en `perception.py` | Reentrenar y volver a evaluar. |
 | Los **hiperparámetros** del índice | `nuevo_regresor` en `pipeline/05_train_index.py` | Reentrenar; **no** ajustar mirando el test. |
-| Los **colores** de la página | Variables al principio de `styles.css` (`--female`, `--male`, …) | Es un cambio de un solo lugar. |
+| Los **colores** de la página | Variables al principio de `styles.css` (`--female`, `--male`, `--bg`…) | Hay **dos bloques**: el tema oscuro (`:root`) y el claro (`:root[data-theme="light"]`). Los colores de **texto** (`--female-t`…) deben mantener buen contraste con el fondo. |
+| El **logo** | Archivos de `app/frontend/assets/` (`logo.svg`, `logo-mark.svg`) | El README también usa `logo.svg`. |
 | Los **ejemplos rápidos** | `PRESETS` en `app/frontend/app.js` | Los acordes deben existir en el vocabulario (los que no, se ignoran). |
 | El **puerto** | Los comandos `--port 8000` en `run.bat`/`run.sh`, o `-p 8080:8000` en Docker | |
 | La **semilla** | `SEED` en `config.py` | Cambian ligeramente todos los resultados; el README quedaría desactualizado (el test de concordancia avisaría). |
