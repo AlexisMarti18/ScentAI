@@ -17,7 +17,7 @@ Herramienta de apoyo para **perfumistas**: se cargan los **acordes** de un perfu
 > - **Con Python:** `git clone <url-del-repo>` → doble clic en `run.bat` (Windows) o `./run.sh` (Linux/Mac) → abrir <http://localhost:8000>.
 > - **Con Docker:** `docker build -t scentai .` → `docker run --rm -p 8000:8000 scentai` → abrir <http://localhost:8000> ([paso a paso](#opción-b-con-docker-paso-a-paso)).
 >
-> También hay [`MODEL_CARD.md`](MODEL_CARD.md) con usos previstos, límites y sesgos.
+> También hay [`MODEL_CARD.md`](MODEL_CARD.md) con usos previstos, límites y sesgos, y [`GUIA_EN_CRIOLLO.md`](GUIA_EN_CRIOLLO.md): una explicación completa, sin tecnicismos, de los conceptos, cada archivo y cada resultado.
 
 ---
 
@@ -395,7 +395,7 @@ Orden: `01_eda.py` (figuras) → `02_etl.py` (limpieza e índice) → `03_experi
 
 ### 4.6 Estructura del repositorio
 ```
-├── README.md · MODEL_CARD.md
+├── README.md · MODEL_CARD.md · GUIA_EN_CRIOLLO.md
 ├── requirements.txt            # entorno completo (app + pipeline + tests)
 ├── requirements-app.txt        # solo lo necesario para usar la app
 ├── run.bat / run.sh            # levantar la app con Python (un comando)

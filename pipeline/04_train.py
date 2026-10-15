@@ -2,7 +2,7 @@
 
   1. Validacion cruzada estratificada (5 folds, macro-F1) de todos los candidatos
      sobre el conjunto de entrenamiento. El TEST no se usa para elegir.
-  2. Ajuste fino acotado de los 2 mejores candidatos (RandomizedSearchCV).
+  2. Ajuste fino acotado del Gradient Boosting, el mejor candidato (RandomizedSearchCV).
   3. El ganador se reentrena con todo el TRAIN y se evalua UNA sola vez en TEST.
   4. Se guarda models/model.joblib + metadata + reports/metrics.json.
 

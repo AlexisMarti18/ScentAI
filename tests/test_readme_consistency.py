@@ -110,3 +110,23 @@ def test_experimentos_y_robustez():
     debe_aparecer(*(dec(ex[k]["macro_f1"], 3) for k in ("solo_acordes", "acordes_mas_notas", "solo_notas")))
     ev = reporte("evaluation.json")
     debe_aparecer(dec(ev["brand_split"]["macro_f1"], 3))
+
+
+def test_guia_en_criollo_cifras_clave():
+    """La guia explicativa tambien cita cifras de los reportes: deben seguir vigentes."""
+    guia = (ROOT / "GUIA_EN_CRIOLLO.md").read_text(encoding="utf-8")
+    etl, eda = reporte("etl.json"), reporte("eda.json")["perception"]
+    idx = reporte("index_metrics.json")["resultados"]["N10"]
+    clf = reporte("metrics.json")["test"]
+    esperados = [
+        miles(etl["train_rows"]), miles(etl["test_rows"]), miles(etl["final_rows"]),
+        miles(etl["perceived"]["train_rows_with_votes"]),
+        dec(eda["unisex_percibido_masculino_pct"], 1) + " %",
+        dec(eda["unisex_percibido_femenino_pct"], 1) + " %",
+        dec(eda["unisex_percibido_intermedio_pct"], 1) + " %",
+        dec(idx["B_indice"]["mae"], 3), dec(idx["A_clasificador_umbral"]["mae"], 3),
+        dec(idx["B_indice"]["zonas_f1_macro"], 3), dec(idx["mejora_mae_pct"], 1) + " %",
+        pct(clf["accuracy"]) + " %", dec(clf["macro_f1"], 3),
+    ]
+    faltan = [e for e in esperados if e not in guia]
+    assert not faltan, f"La guia no contiene: {faltan}"
