@@ -1,91 +1,177 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScentAI · Tendencia de género por acordes</title>
   <meta name="description" content="Estima si un perfil de acordes tiende a femenino, masculino o unisex.">
+  <meta name="theme-color" content="#0f0d12">
+  <link rel="icon" type="image/svg+xml" href="assets/logo-mark.svg">
+  <script>
+    // Aplica el tema antes del primer render para evitar el parpadeo.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("scentai-theme"); } catch (e) { /* almacenamiento bloqueado */ }
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="header">
-    <div class="wrap">
-      <h1>Scent<em>AI</em></h1>
-      <p>Cargá los acordes de tu perfume y mirá en qué punto del espectro femenino ↔ masculino cae, antes de pedir la primera muestra.</p>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="./" aria-label="ScentAI, ir al inicio">
+        <img class="brand-mark" src="assets/logo-mark.svg" alt="" width="36" height="36">
+        <span class="brand-name">Scent<span class="brand-ai">AI</span></span>
+      </a>
+
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button class="tab" role="tab" type="button" aria-selected="true" aria-controls="tab-predict" data-tab="predict" id="tab-predict-btn">Predictor</button>
+        <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="tab-model" data-tab="model" id="tab-model-btn" tabindex="-1">El modelo</button>
+      </nav>
+
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Cambiar a tema claro" title="Cambiar tema">
+        <span data-icon="sun" aria-hidden="true"></span>
+      </button>
     </div>
   </header>
 
-  <main class="wrap">
-    <nav class="tabs" role="tablist" aria-label="Secciones">
-      <button class="tab active" role="tab" aria-selected="true" data-tab="predict" id="tab-predict-btn">Predictor</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="model" id="tab-model-btn">Sobre el modelo</button>
-    </nav>
+  <main id="main" class="wrap">
+    <div id="banner" class="banner" role="alert" hidden>
+      <span class="banner-icon" data-icon="alert" aria-hidden="true"></span>
+      <span class="banner-text" id="banner-text"></span>
+      <button class="icon-btn icon-btn-sm" id="banner-close" type="button" aria-label="Cerrar aviso"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
 
-    <div id="banner" class="banner" role="alert" hidden></div>
+    <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
 
     <!-- ======================= PREDICTOR ======================= -->
     <section id="tab-predict" class="pane active" role="tabpanel" aria-labelledby="tab-predict-btn">
-      <div class="grid">
-        <div class="card">
-          <div class="card-head">
-            <h2>1. Elegí los acordes</h2>
-            <span class="counter" id="counter">0 / 8</span>
-          </div>
-          <p class="hint">Hasta <span id="max-accords">8</span> acordes. Buscá y tocá para agregar o quitar.</p>
+      <div class="hero">
+        <p class="eyebrow">Para perfumistas</p>
+        <h1>¿Hacia qué lado del espectro cae tu perfume?</h1>
+        <p class="lede">Cargá los acordes y su intensidad: el modelo ubica el perfil entre femenino y masculino <em>antes</em> de pedir la primera muestra.</p>
+      </div>
 
-          <div class="presets" id="presets" aria-label="Ejemplos rápidos"></div>
+      <div class="workspace">
+        <div class="card builder">
+          <section class="step" aria-labelledby="step1-title">
+            <header class="step-head">
+              <span class="step-num" aria-hidden="true">1</span>
+              <div class="step-title">
+                <h2 id="step1-title">Elegí los acordes</h2>
+                <p class="hint">Hasta <span id="max-accords">8</span> acordes. Buscá y tocá para agregar o quitar.</p>
+              </div>
+              <span class="counter" id="counter" aria-label="Acordes elegidos">0 / 8</span>
+            </header>
 
-          <label class="sr-only" for="search">Buscar acorde</label>
-          <input id="search" class="search" type="search" placeholder="Buscar acorde (ej. woody, vanilla…)" autocomplete="off">
-          <div class="chips" id="chips" role="group" aria-label="Acordes disponibles"></div>
+            <p class="label" id="presets-label">Empezar con un ejemplo</p>
+            <div class="presets" id="presets" role="group" aria-labelledby="presets-label"></div>
 
-          <h2 class="mt">2. Ajustá la intensidad</h2>
-          <p class="hint">Es relativa: el acorde más fuerte se toma como 100, igual que en los datos de entrenamiento.</p>
-          <div id="selected" class="selected"></div>
-          <p class="empty" id="selected-empty">Todavía no elegiste ningún acorde.</p>
-          <button class="btn-ghost" id="clear" type="button" hidden>Limpiar todo</button>
+            <div class="search-box">
+              <span class="search-icon" data-icon="search" aria-hidden="true"></span>
+              <label class="sr-only" for="search">Buscar acorde</label>
+              <input id="search" class="search" type="search" placeholder="Buscar acorde (ej. woody, vanilla…)" autocomplete="off" spellcheck="false">
+              <button class="icon-btn icon-btn-sm search-clear" id="search-clear" type="button" aria-label="Borrar búsqueda" hidden><span data-icon="x" aria-hidden="true"></span></button>
+            </div>
+            <p class="hint hint-sm" id="chips-status">&nbsp;</p>
+            <div class="chips-scroll">
+              <div class="chips" id="chips" role="group" aria-label="Acordes disponibles"></div>
+            </div>
+          </section>
+
+          <section class="step" aria-labelledby="step2-title">
+            <header class="step-head">
+              <span class="step-num" aria-hidden="true">2</span>
+              <div class="step-title">
+                <h2 id="step2-title">Ajustá la intensidad</h2>
+                <p class="hint">Es relativa: el acorde más fuerte se toma como 100, igual que en los datos de entrenamiento.</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="clear" type="button" hidden>Limpiar todo</button>
+            </header>
+            <div id="selected" class="selected"></div>
+            <div class="empty-box" id="selected-empty">
+              <span data-icon="sliders" aria-hidden="true"></span>
+              <p>Cuando elijas un acorde vas a poder ajustar su intensidad acá.</p>
+            </div>
+          </section>
         </div>
 
-        <div class="card result" aria-live="polite">
-          <h2>Resultado</h2>
-          <div id="result-empty" class="empty big">Elegí al menos un acorde para ver la tendencia.</div>
-          <div id="result" hidden>
-            <p class="eyebrow">Posición en el espectro</p>
-            <p class="verdict" id="verdict"></p>
-            <p class="verdict-sub" id="verdict-sub"></p>
-
-            <div class="spectrum" id="spectrum" role="img" aria-label="">
-              <div class="spectrum-track">
-                <div class="spectrum-marker" id="marker"></div>
-              </div>
-              <div class="spectrum-zones">
-                <span>Femenino</span><span>Unisex</span><span>Masculino</span>
-              </div>
+        <aside class="summary" aria-label="Resultado">
+          <div class="card result-card" id="summary">
+            <div id="result-empty" class="empty-state">
+              <img class="empty-mark" src="assets/logo-mark.svg" alt="" width="64" height="64">
+              <h2>Tu resultado aparece acá</h2>
+              <p class="hint">Elegí al menos un acorde, o probá un ejemplo, para ver en qué punto del espectro cae.</p>
+              <button class="btn btn-secondary" id="try-example" type="button">Probar un ejemplo</button>
             </div>
 
-            <h3 class="mt">Femenino vs. masculino</h3>
+            <div id="result" hidden>
+              <h2 class="eyebrow">Posición en el espectro</h2>
+              <div class="verdict-row">
+                <p class="verdict" id="verdict"></p>
+                <p class="index-fig"><span id="index-num"></span><small>índice</small></p>
+              </div>
+
+              <div class="spectrum" id="spectrum" role="img" aria-label="" data-zone="">
+                <div class="spectrum-track">
+                  <div class="spectrum-marker" id="marker"></div>
+                </div>
+                <div class="spectrum-scale" aria-hidden="true">
+                  <span data-zone="female">Femenino</span><span data-zone="unisex">Unisex</span><span data-zone="male">Masculino</span>
+                </div>
+              </div>
+
+              <p class="verdict-sub" id="verdict-sub"></p>
+              <p class="disclaimer"><span data-icon="info" aria-hidden="true"></span><span>Orientación estadística basada en perfumes ya lanzados; no reemplaza el criterio del perfumista ni garantiza cómo se percibirá la fórmula final.</span></p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="details" id="details" aria-labelledby="details-title" hidden>
+        <h2 class="section-title" id="details-title">Lectura detallada</h2>
+        <div class="details-grid">
+          <div class="card">
+            <h3>Femenino vs. masculino</h3>
             <p class="hint">Ignora unisex: reparte 100 % entre los dos extremos.</p>
             <div class="duel" id="duel"></div>
-
-            <h3 class="mt">Probabilidad según la etiqueta de género</h3>
+          </div>
+          <div class="card">
+            <h3>Probabilidad según la etiqueta de género</h3>
             <p class="hint">Cuánto aparece cada clase frente a su frecuencia habitual en los datos (×1 = igual al promedio).</p>
             <div class="bars" id="bars"></div>
-
+          </div>
+          <div class="card">
             <h3>Qué acordes pesan más</h3>
             <p class="hint">Cuánto se mueve el índice (en puntos, de 0 a 100) si quitás ese acorde.</p>
             <ul class="infl" id="influences"></ul>
-            <p class="disclaimer">Orientación estadística basada en perfumes ya lanzados; no reemplaza el criterio del perfumista ni garantiza cómo se percibirá la fórmula final.</p>
+            <div class="infl-axis" aria-hidden="true"><span>← Femenino</span><span>Masculino →</span></div>
           </div>
         </div>
-      </div>
+      </section>
     </section>
 
     <!-- ======================= MODELO ======================= -->
     <section id="tab-model" class="pane" role="tabpanel" aria-labelledby="tab-model-btn">
+      <div class="hero">
+        <p class="eyebrow">Transparencia</p>
+        <h1>Qué hay detrás del resultado</h1>
+        <p class="lede" id="model-summary">Cargando…</p>
+      </div>
+
       <div class="card">
         <h2>Modelo principal: índice de masculinidad percibida</h2>
-        <p class="hint" id="model-summary">Cargando…</p>
-        <div class="tiles" id="tiles"></div>
+        <p class="hint">Métricas sobre perfumes del test, que el modelo nunca vio al entrenarse.</p>
+        <div class="tiles" id="tiles" aria-busy="true">
+          <div class="tile skeleton" aria-hidden="true"></div>
+          <div class="tile skeleton" aria-hidden="true"></div>
+          <div class="tile skeleton" aria-hidden="true"></div>
+          <div class="tile skeleton" aria-hidden="true"></div>
+        </div>
       </div>
 
       <div class="card mt">
@@ -94,7 +180,7 @@
         <div class="table-wrap"><table id="cmp-table"></table></div>
       </div>
 
-      <div class="grid mt">
+      <div class="grid-2 mt">
         <div class="card">
           <h3>Cómo se entrenó con los votos</h3>
           <p class="hint">Esquemas probados en validación (sin usar el test).</p>
@@ -110,7 +196,7 @@
       <div class="card mt">
         <h2>Clasificador de la etiqueta <code>gender</code> (complemento)</h2>
         <p class="hint" id="clf-summary"></p>
-        <div class="grid">
+        <div class="grid-2">
           <div class="table-wrap"><table id="cv-table"><thead></thead><tbody></tbody></table></div>
           <div>
             <div class="table-wrap"><table id="cm-table"></table></div>
@@ -121,7 +207,21 @@
     </section>
   </main>
 
-  <footer class="footer wrap">ScentAI · Proyecto de Machine Learning · Los datos provienen de Fragrantica (Kaggle)</footer>
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <img src="assets/logo-mark.svg" alt="" width="24" height="24">
+      <p>ScentAI · Proyecto de Machine Learning · Los datos provienen de Fragrantica (Kaggle)</p>
+    </div>
+  </footer>
+
+  <!-- Barra flotante (solo móvil): mantiene a la vista el resultado mientras se editan los acordes -->
+  <button class="minibar" id="minibar" type="button" aria-label="Ver resultado completo" hidden>
+    <span class="minibar-dot" id="minibar-dot" aria-hidden="true"></span>
+    <span class="minibar-text"><span id="minibar-verdict"></span> · <b id="minibar-index"></b></span>
+    <span class="minibar-track" aria-hidden="true"><span class="minibar-marker" id="minibar-marker"></span></span>
+    <span class="minibar-go" data-icon="chevron-up" aria-hidden="true"></span>
+  </button>
+
   <script src="app.js"></script>
 </body>
 </html>

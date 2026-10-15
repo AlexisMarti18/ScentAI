@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 80" width="264" height="80" role="img" aria-labelledby="t">
+  <title id="t">ScentAI</title>
+  <defs>
+    <linearGradient id="spec" gradientUnits="userSpaceOnUse" x1="10" y1="0" x2="50" y2="0">
+      <stop offset="0" stop-color="#f472a6"/>
+      <stop offset="0.5" stop-color="#f4c76a"/>
+      <stop offset="1" stop-color="#5aa9f7"/>
+    </linearGradient>
+    <linearGradient id="spec-text" gradientUnits="userSpaceOnUse" x1="170" y1="0" x2="222" y2="0">
+      <stop offset="0" stop-color="#f472a6"/>
+      <stop offset="0.5" stop-color="#f4c76a"/>
+      <stop offset="1" stop-color="#5aa9f7"/>
+    </linearGradient>
+    <clipPath id="glass">
+      <rect x="14.3" y="23.3" width="31.4" height="30.4" rx="8.7"/>
+    </clipPath>
+  </defs>
+  <rect width="264" height="80" rx="20" fill="#16121c"/>
+  <g transform="translate(5 3) scale(1.14)">
+    <g transform="translate(-3.5 1.5)">
+      <rect x="23" y="9" width="14" height="8" rx="2.5" fill="#f3eee6"/>
+      <rect x="26.5" y="17" width="7" height="5" fill="#f3eee6"/>
+      <g clip-path="url(#glass)">
+        <path d="M10 37 Q20 31 30 37 T50 37 V58 H10 Z" fill="url(#spec)"/>
+      </g>
+      <rect x="13" y="22" width="34" height="33" rx="10" fill="none" stroke="#f3eee6" stroke-width="2.6"/>
+      <path d="M19 30 V43" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round"/>
+      <path d="M49 6C49.8 10.5 51.5 12.2 56 13C51.5 13.8 49.8 15.5 49 20C48.2 15.5 46.5 13.8 42 13C46.5 12.2 48.2 10.5 49 6Z" fill="#f4c76a"/>
+      <path d="M55 21C55.3 23 56 23.7 58 24C56 24.3 55.3 25 55 27C54.7 25 54 24.3 52 24C54 23.7 54.7 23 55 21Z" fill="#f3eee6" fill-opacity="0.9"/>
+    </g>
+  </g>
+  <text x="86" y="52" font-family="'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif" font-size="38" font-weight="600" letter-spacing="-0.8" fill="#f3eee6">Scent<tspan fill="url(#spec-text)" font-style="italic">AI</tspan></text>
+</svg>

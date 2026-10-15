@@ -1,3 +1,5 @@
+<p align="center"><img src="app/frontend/assets/logo.svg" alt="ScentAI" width="264"></p>
+
 # ScentAI · ¿Hacia qué lado del espectro cae tu perfume?
 
 Herramienta de apoyo para **perfumistas**: se cargan los **acordes** de un perfume (con su intensidad) y un modelo de Machine Learning ubica el perfil en un **espectro femenino ↔ masculino**, *antes* de pedir la primera muestra a la esenciera. La idea es ahorrar idas y vueltas de muestras que terminan con un carácter distinto al buscado.
@@ -277,7 +279,7 @@ La app muestra el **índice y su zona** como resultado principal, y agrega del c
 ### 4.1 Qué se entrega
 - **Modelos:** `models/index_model.joblib` (≈ 0,5 MB) y `models/model.joblib` (≈ 1 MB), con `models/accords_vocab.json` y `models/metadata.json`.
 - **Backend:** API REST con **FastAPI** (`app/backend`).
-- **Frontend:** página estática (HTML/CSS/JS, sin CDN: funciona sin internet) servida por el mismo backend (`app/frontend`).
+- **Frontend:** página estática (HTML/CSS/JS, sin CDN: funciona sin internet) servida por el mismo backend (`app/frontend`). Tema oscuro y claro (sigue al sistema), diseño adaptable a celular, navegación por teclado y logo propio (`app/frontend/assets`).
 - **Pipeline reproducible**, **tests** y **CI** (`.github/workflows/tests.yml`).
 - **Dockerfile** (imagen de ≈ 570 MB que incluye código, modelos y reportes; probada con Docker 29.7) y **ficha del modelo** ([`MODEL_CARD.md`](MODEL_CARD.md)).
 
@@ -352,10 +354,12 @@ Problemas frecuentes:
 - **Quiero reentrenar los modelos:** se hace con el entorno Python completo (sección 4.5), no dentro de esta imagen.
 
 ### 4.3 Cómo usar la demo
-1. En **Predictor**, buscá y tocá los acordes (hasta 8) o usá un **ejemplo rápido**.
+1. En **Predictor**, empezá con uno de los **ejemplos** o buscá y tocá los acordes (hasta 8).
 2. Ajustá la **intensidad** con los controles (es relativa: el acorde más fuerte se toma como 100).
-3. A la derecha: la **posición en el espectro** (barra con tres zonas), la **lectura femenino vs. masculino**, las **probabilidades por etiqueta con su frecuencia base** y **qué acordes pesan más** (cuántos puntos del índice se mueve si se quita cada uno).
-4. La pestaña **Sobre el modelo** muestra las métricas reales leídas de la API: comparación índice vs. clasificador, estudio de votos, comparación de modelos y matriz de confusión.
+3. A la derecha (o arriba, en el celular) aparece la **posición en el espectro**: el índice y una barra con tres zonas. En el celular, una **barra flotante** mantiene a la vista el resultado mientras editás.
+4. Debajo, la **lectura detallada**: la **lectura femenino vs. masculino**, las **probabilidades por etiqueta con su frecuencia base** y **qué acordes pesan más** (cuántos puntos del índice se mueve si se quita cada uno, con barras que apuntan a femenino o a masculino).
+5. El botón del sol/luna cambia entre **tema oscuro y claro** (por defecto sigue al sistema y recuerda tu elección).
+6. La pestaña **El modelo** muestra las métricas reales leídas de la API: comparación índice vs. clasificador, estudio de votos, comparación de modelos y matriz de confusión.
 
 ### 4.4 API
 `POST /api/predict`
@@ -404,7 +408,7 @@ Orden: `01_eda.py` (figuras) → `02_etl.py` (limpieza e índice) → `03_experi
 ├── perfume_gender/             # lógica compartida (parseo, índice, features, predictor)
 ├── pipeline/                   # EDA → ETL → clasificador → índice → evaluación
 ├── experiments/                # estudio de pesos por votos
-├── app/{backend,frontend}/     # FastAPI + HTML/CSS/JS
+├── app/{backend,frontend}/     # FastAPI + HTML/CSS/JS (frontend/assets: logo)
 ├── models/                     # modelos entrenados, vocabulario y metadata
 ├── reports/                    # métricas en JSON (fuente de las cifras)
 ├── docs/                       # figuras del README
