@@ -199,12 +199,31 @@ function setFill(slider) {
 }
 
 function buildRow(name, value) {
-  const val = el("span", { class: "val", text: String(value) });
+  const apply = (v) => {
+    state.selected.set(name, v);
+    slider.value = String(v);
+    setFill(slider);
+    schedulePredict();
+  };
+  const val = el("input", {
+    class: "val", type: "number", min: "1", max: "100", step: "1", inputmode: "numeric", value: String(value),
+    "aria-label": `Valor de intensidad de ${name}`,
+    oninput: (e) => {
+      const v = Math.round(Number(e.target.value));
+      if (e.target.value !== "" && v >= 1 && v <= 100) apply(v); // mientras escribe, solo valores válidos
+    },
+    onchange: (e) => { // al terminar, se ajusta al rango y se normaliza lo mostrado
+      const n = Number(e.target.value);
+      const v = Math.min(100, Math.max(1, Math.round(Number.isFinite(n) && e.target.value !== "" ? n : state.selected.get(name))));
+      e.target.value = String(v);
+      apply(v);
+    },
+  });
   const slider = el("input", {
     type: "range", min: "1", max: "100", value: String(value), "aria-label": `Intensidad de ${name}`,
     oninput: (e) => {
       state.selected.set(name, Number(e.target.value));
-      val.textContent = e.target.value;
+      val.value = e.target.value;
       setFill(e.target);
       schedulePredict();
     },
@@ -226,7 +245,7 @@ function renderSelected() {
     if (!row) { row = buildRow(name, value); state.rows.set(name, row); }
     else if (Number(row.slider.value) !== value) { // un ejemplo pisó la intensidad
       row.slider.value = String(value);
-      row.val.textContent = String(value);
+      row.val.value = String(value);
       setFill(row.slider);
     }
     if (box.children[i] !== row.node) box.insertBefore(row.node, box.children[i] ?? null);
