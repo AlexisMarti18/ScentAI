@@ -295,13 +295,18 @@ em { font-style: italic; }
 /* acordes elegidos con su intensidad */
 .selected { display: grid; gap: var(--s-2); }
 .row {
-  display: grid; grid-template-columns: minmax(92px, 140px) 1fr 3.25rem 32px; align-items: center; gap: var(--s-2) var(--s-3);
+  display: grid; grid-template-columns: minmax(92px, 140px) 1fr 4rem 32px; align-items: center; gap: var(--s-2) var(--s-3);
   padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
   animation: row-in 0.2s ease;
 }
 @keyframes row-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .row .name { overflow: hidden; font-size: 0.9375rem; font-weight: 600; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
-.row .val { text-align: right; font-size: 0.875rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.row .val {
+  width: 100%; padding: 4px 6px; text-align: right; font: inherit; font-size: 0.875rem; font-variant-numeric: tabular-nums; font-weight: 600;
+  color: inherit; background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; -moz-appearance: textfield; appearance: textfield;
+}
+.row .val::-webkit-outer-spin-button, .row .val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.row .val:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .row .rm:hover { color: var(--danger); }
 
 .empty-box {
@@ -467,7 +472,7 @@ tr.best td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   .topbar-inner { gap: var(--s-2); }
   .brand-name { font-size: 1.15rem; }
   .tab { padding: 0 10px; }
-  .row { grid-template-columns: minmax(0, 1fr) 3rem; grid-template-areas: "name rm" "slider val"; row-gap: 0; }
+  .row { grid-template-columns: minmax(0, 1fr) 4rem; grid-template-areas: "name rm" "slider val"; row-gap: 0; }
   .row .name { grid-area: name; }
   .row .rm { grid-area: rm; justify-self: end; }
   .row input[type="range"] { grid-area: slider; }
