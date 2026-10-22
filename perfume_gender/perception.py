@@ -48,6 +48,15 @@ def zone(index: np.ndarray | float) -> np.ndarray:
     return np.where(index < ZONE_LIMITS[0], "female", np.where(index > ZONE_LIMITS[1], "male", "unisex"))
 
 
+def zone_center(name: str) -> float:
+    """Punto medio de una zona ('female', 'unisex' o 'male'); sirve como objetivo de las sugerencias."""
+    lo, hi = ZONE_LIMITS
+    centers = {"female": lo / 2, "unisex": (lo + hi) / 2, "male": (hi + 1) / 2}
+    if name not in centers:
+        raise ValueError(f"Zona desconocida: {name!r} (usar female, unisex o male)")
+    return centers[name]
+
+
 def vote_weight(votes: np.ndarray, cap: int = VOTE_CAP) -> np.ndarray:
     """Peso de entrenamiento: raiz de los votos con tope (mas votos = etiqueta mas confiable)."""
     return np.sqrt(np.minimum(np.asarray(votes, dtype=float), cap))

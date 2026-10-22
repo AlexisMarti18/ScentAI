@@ -152,6 +152,18 @@
             <div class="infl-axis" aria-hidden="true"><span>← Femenino</span><span>Masculino →</span></div>
           </div>
         </div>
+
+        <div class="card suggest" id="suggest">
+          <h3>Llevar el perfil hacia…</h3>
+          <p class="hint">Elegí hacia dónde querés moverlo y te propongo cambios simples (agregar, quitar, subir, bajar o reemplazar un acorde). Es una orientación estadística: el modelo aprendió de perfumes ya existentes, no es una receta.</p>
+          <div class="targets" role="group" aria-label="Objetivo del perfil">
+            <button class="target" type="button" data-target="female" aria-pressed="false">Más femenino</button>
+            <button class="target" type="button" data-target="unisex" aria-pressed="false">Zona intermedia</button>
+            <button class="target" type="button" data-target="male" aria-pressed="false">Más masculino</button>
+          </div>
+          <p class="hint suggest-status" id="suggest-status" role="status" aria-live="polite"></p>
+          <ul class="suggestions" id="suggestions"></ul>
+        </div>
       </section>
     </section>
 

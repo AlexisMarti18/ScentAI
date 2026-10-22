@@ -17,13 +17,23 @@ import numpy as np
 from . import config
 from .features import load_vocab, rescale_to_max, vectorize
 from .parsing import normalize_accord
-from .perception import zone
+from .perception import zone, zone_center
 
 NEUTRAL_EFFECT = 0.005  # por debajo de este cambio de indice un acorde se considera neutro
+
+# Sugerencias: cambios candidatos y criterios (ver docs del README, seccion 4.3)
+ADD_LEVELS = (0.3, 0.6, 1.0)    # intensidad de un acorde agregado, como fraccion del acorde mas fuerte
+RAISE_STEP = 0.3                # "subir" = +30 % del acorde mas fuerte
+REACHED_TOLERANCE = 0.03        # objetivo numerico: alcanzado si |indice - objetivo| <= 0,03
+MIN_GAIN = 0.01                 # una sugerencia debe acercar el indice al objetivo al menos esto
 
 
 class InvalidAccordsError(ValueError):
     """La entrada tiene acordes desconocidos, vacios o demasiados."""
+
+
+class InvalidTargetError(ValueError):
+    """El objetivo de una sugerencia no es una zona valida ni un indice entre 0 y 1."""
 
 
 def male_vs_female(p_female: float, p_male: float) -> dict[str, float]:
@@ -60,6 +70,10 @@ class Predictor:
     # ------------------------------------------------------------------ entrada
     def clean_input(self, accords: Mapping[str, float]) -> dict[str, float]:
         """Normaliza nombres, valida y reescala para que el acorde principal valga 100."""
+        return rescale_to_max(self.validate_input(accords))
+
+    def validate_input(self, accords: Mapping[str, float]) -> dict[str, float]:
+        """Normaliza nombres y valida, SIN reescalar (queda en la escala que cargo el usuario)."""
         cleaned: dict[str, float] = {}
         for name, value in accords.items():
             key = normalize_accord(name)
@@ -73,7 +87,7 @@ class Predictor:
         unknown = sorted(set(cleaned) - set(self.vocab))
         if unknown:
             raise InvalidAccordsError(f"Acordes desconocidos: {', '.join(unknown)}")
-        return rescale_to_max(cleaned)
+        return cleaned
 
     # --------------------------------------------------------------- prediccion
     def _x(self, accords: Mapping[str, float]) -> np.ndarray:
@@ -115,3 +129,88 @@ class Predictor:
             out.append({"accord": name, "index_effect": round(effect, 4), "pushes_toward": toward})
         out.sort(key=lambda i: -abs(i["index_effect"]))
         return out
+
+    # -------------------------------------------------------------- sugerencias
+    def _candidates(self, cur: dict[str, float]) -> list[tuple[str, str, float | None, float | None, str | None, dict[str, float]]]:
+        """Cambios simples de a uno sobre el perfil `cur` (en la escala del usuario).
+
+        Devuelve tuplas (accion, acorde, intensidad_antes, intensidad_despues, acorde_reemplazado, perfil).
+        Si el perfil ya tiene el maximo de acordes no se puede agregar: se ofrece reemplazar uno por otro.
+        """
+        top = max(cur.values())
+        levels = sorted({max(1, min(100, round(top * f))) for f in ADD_LEVELS})
+        out = []
+        for name, v in cur.items():
+            rest = {k: x for k, x in cur.items() if k != name}
+            if len(cur) > 1:
+                out.append(("remove", name, v, None, None, rest))
+            lower = max(1, round(v * 0.5))
+            if lower < v:
+                out.append(("decrease", name, v, lower, None, {**cur, name: lower}))
+            higher = min(100, round(v + RAISE_STEP * top))
+            if higher > v:
+                out.append(("increase", name, v, higher, None, {**cur, name: higher}))
+            if len(cur) >= config.MAX_ACCORDS:  # perfil completo: cambiar `name` por otro acorde
+                for new in self.vocab:
+                    if new not in cur:
+                        for level in levels:
+                            out.append(("replace", new, None, level, name, {**rest, new: level}))
+        if len(cur) < config.MAX_ACCORDS:
+            for new in self.vocab:
+                if new not in cur:
+                    for level in levels:
+                        out.append(("add", new, None, level, None, {**cur, new: level}))
+        return out
+
+    def suggest(self, accords: Mapping[str, float], target: str | float, top_k: int = 3) -> dict:
+        """Cambios que acercan el indice al objetivo (una zona o un indice entre 0 y 1).
+
+        Cada candidato se evalua con el modelo de indice (en una sola llamada). Se devuelven hasta
+        `top_k` sugerencias, sin repetir acorde, ordenadas por cuanto acercan el indice al objetivo.
+        Es correlacion aprendida de perfumes existentes, no una receta.
+        """
+        cur = self.validate_input(accords)
+        index = self._index(rescale_to_max(cur))
+        current_zone = str(zone(index))
+
+        if isinstance(target, str):
+            try:
+                target_index = zone_center(target)
+            except ValueError as exc:
+                raise InvalidTargetError(str(exc)) from exc
+            reached = current_zone == target
+        else:
+            target_index = float(target)
+            if not 0.0 <= target_index <= 1.0:
+                raise InvalidTargetError("El indice objetivo debe estar entre 0 y 1.")
+            reached = abs(index - target_index) <= REACHED_TOLERANCE
+
+        result = {"index": round(index, 4), "zone": current_zone, "target_index": round(target_index, 4),
+                  "reached": reached, "suggestions": []}
+        if reached:
+            return result
+
+        candidates = self._candidates(cur)
+        X = np.vstack([vectorize(rescale_to_max(profile), self.vocab) for *_, profile in candidates])
+        new_index = np.clip(self.index_model.predict(X), 0.0, 1.0)
+
+        distance = abs(index - target_index)
+        scored = []
+        for (action, name, before, after, replaces, _), idx in zip(candidates, new_index):
+            gain = distance - abs(float(idx) - target_index)
+            if gain >= MIN_GAIN:
+                scored.append((gain, {"action": action, "accord": name, "replaces": replaces,
+                                      "from_intensity": before, "to_intensity": after,
+                                      "index_after": round(float(idx), 4), "delta": round(float(idx) - index, 4)}))
+        scored.sort(key=lambda t: -t[0])
+        chosen, touched = [], set()
+        for _, sug in scored:  # una sugerencia por acorde: ninguna toca un acorde ya usado
+            names = {sug["accord"], sug["replaces"]} - {None}
+            if names & touched:
+                continue
+            chosen.append(sug)
+            touched |= names
+            if len(chosen) == top_k:
+                break
+        result["suggestions"] = chosen
+        return result

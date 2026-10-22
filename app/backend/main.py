@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from perfume_gender import config
-from perfume_gender.predictor import InvalidAccordsError, Predictor
+from perfume_gender.predictor import InvalidAccordsError, InvalidTargetError, Predictor
 
-from .schemas import PredictRequest, PredictResponse
+from .schemas import PredictRequest, PredictResponse, SuggestRequest, SuggestResponse
 
 log = logging.getLogger("perfume_gender")
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
@@ -72,6 +72,17 @@ def predict(req: PredictRequest):
     try:
         return p.predict({a.name: a.intensity for a in req.accords})
     except InvalidAccordsError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/suggest", response_model=SuggestResponse)
+def suggest(req: SuggestRequest):
+    """Cambios simples (agregar, quitar, subir o bajar un acorde) que acercan el indice al objetivo."""
+    p = get_predictor()
+    target = req.target if req.target is not None else req.target_index
+    try:
+        return p.suggest({a.name: a.intensity for a in req.accords}, target)
+    except (InvalidAccordsError, InvalidTargetError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
 

@@ -130,3 +130,16 @@ def test_guia_en_criollo_cifras_clave():
     ]
     faltan = [e for e in esperados if e not in guia]
     assert not faltan, f"La guia no contiene: {faltan}"
+
+
+def test_sugerencias_verificadas():
+    pares = reporte("suggestions.json")["pares"]
+    for datos in pares.values():
+        debe_aparecer(dec(datos["mejor_llega_pct"], 1) + " %", dec(datos["mejora_media"], 3))
+
+
+def test_guia_cita_sugerencias_verificadas():
+    guia = (ROOT / "GUIA_EN_CRIOLLO.md").read_text(encoding="utf-8")
+    for datos in reporte("suggestions.json")["pares"].values():
+        for texto in (dec(datos["mejor_llega_pct"], 1) + " %", dec(datos["mejora_media"], 3)):
+            assert texto in guia, f"La guia no contiene: {texto}"

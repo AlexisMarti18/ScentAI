@@ -25,6 +25,7 @@ Dataset de Kaggle con perfumes de Fragrantica (131.930 filas). Tras la limpieza:
 ## Limitaciones y sesgos
 - **Los acordes son votos de usuarios sobre perfumes ya lanzados**, no fórmulas. El modelo aprende cómo se perciben o comercializan los perfiles existentes.
 - **Los votos de percepción no están libres de sesgo:** quienes votan ven antes la etiqueta de género de la marca.
+- **Las sugerencias son correlación, no causalidad:** la función "Llevar el perfil hacia…" propone cambios que, según el modelo, acercan el índice al objetivo. No sabe cómo huele una fórmula ni cómo interactúan las materias primas; son ideas para probar, no una receta.
 - **Estereotipos de género:** el modelo reproduce las convenciones del mercado (qué acordes se asocian a "femenino" o "masculino"). Esas convenciones son culturales y pueden cambiar; el modelo no las juzga.
 - **Zona masculina → tiende a unisex:** una parte de los perfumes percibidos como masculinos (44 % en el test) queda ubicada en la zona intermedia, porque los acordes solos no los distinguen de los unisex.
 - **Perfumes con pocos votos son menos confiables** como referencia: el rendimiento baja en perfumes con menos de 5 votos.

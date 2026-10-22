@@ -75,6 +75,7 @@ Cuando cargás los acordes, la página te muestra:
 2. Una lectura **"femenino vs. masculino"**: ignora la opción "unisex" y reparte 100 % entre los dos extremos (por ejemplo, 30 % femenino / 70 % masculino).
 3. Las **probabilidades por etiqueta**: cuánta chance tiene de ser etiquetado femenino, masculino o unisex, comparada con lo habitual.
 4. Qué **acordes pesan más** en el resultado: cuántos puntos se mueve el índice si sacás cada acorde.
+5. **Sugerencias** para mover el perfil: si elegís "quiero llegar a más masculino" (o femenino, o intermedio), el programa propone hasta 3 cambios simples (agregar, quitar, subir, bajar o reemplazar un acorde) y te deja aplicarlos con un botón.
 
 ## 1.4 ¿Por qué hay DOS modelos y no uno?
 
@@ -1393,6 +1394,86 @@ def _influences(self, cleaned, index):
 
 > **Limitación para entender:** esto mide el efecto de **quitar** un acorde, no una "importancia universal". Si dos acordes hacen lo mismo, quitar solo uno puede no cambiar nada (por eso en la composición de ejemplo `cannabis`, `chocolate` y `aldehydic` salen con 0 puntos).
 
+
+### Las sugerencias: `validate_input`, `_candidates` y `suggest`
+
+Esta es la parte más nueva del predictor. Responde la pregunta que de verdad se hace el perfumista: **"quiero que sea más masculino, ¿qué le cambio?"**.
+
+**Constantes nuevas (al principio del archivo):**
+```python
+ADD_LEVELS = (0.3, 0.6, 1.0)
+RAISE_STEP = 0.3
+REACHED_TOLERANCE = 0.03
+MIN_GAIN = 0.01
+```
+- `ADD_LEVELS`: si se **agrega** un acorde, se prueba con el 30 %, el 60 % y el 100 % de la intensidad del acorde más fuerte del perfil.
+- `RAISE_STEP`: **subir** un acorde significa sumarle el 30 % del acorde más fuerte (**bajar** es dejarlo a la mitad).
+- `REACHED_TOLERANCE`: si el objetivo es un número, se considera "alcanzado" a ±0,03.
+- `MIN_GAIN`: una sugerencia tiene que acercar el índice al objetivo **al menos 0,01**; si no, no vale la pena mostrarla.
+
+También hay un tipo de error nuevo, `InvalidTargetError` ("el objetivo no es una zona válida ni un índice entre 0 y 1"), parecido a `InvalidAccordsError`.
+
+**`validate_input` vs. `clean_input`.** Antes había una sola función (`clean_input`) que validaba **y** reescalaba. Ahora se separó en dos: `validate_input` valida y normaliza los nombres **pero deja las intensidades como las escribió el usuario**, y `clean_input` es simplemente `rescale_to_max(validate_input(...))`. La separación es necesaria porque las sugerencias tienen que hablar **en la escala del usuario**: si el usuario cargó `woody 84`, la sugerencia dice "subí a 90", no "subí a 107" (que sería el valor reescalado y no podría aplicar).
+
+```python
+def _candidates(self, cur):
+    top = max(cur.values())
+    levels = sorted({max(1, min(100, round(top * f))) for f in ADD_LEVELS})
+    out = []
+    for name, v in cur.items():
+        rest = {k: x for k, x in cur.items() if k != name}
+        if len(cur) > 1:
+            out.append(("remove", name, v, None, None, rest))
+        lower = max(1, round(v * 0.5))
+        if lower < v:
+            out.append(("decrease", name, v, lower, None, {**cur, name: lower}))
+        higher = min(100, round(v + RAISE_STEP * top))
+        if higher > v:
+            out.append(("increase", name, v, higher, None, {**cur, name: higher}))
+        if len(cur) >= config.MAX_ACCORDS:
+            for new in self.vocab:
+                if new not in cur:
+                    for level in levels:
+                        out.append(("replace", new, None, level, name, {**rest, new: level}))
+    if len(cur) < config.MAX_ACCORDS:
+        for new in self.vocab:
+            if new not in cur:
+                for level in levels:
+                    out.append(("add", new, None, level, None, {**cur, new: level}))
+    return out
+```
+**`_candidates`: la lista de "cosas para probar".** Recorre el perfil y arma **todos los cambios simples de a uno**. Cada elemento de la lista es una tupla con: la acción, el acorde, la intensidad de antes, la de después, el acorde que se reemplaza (si corresponde) y **cómo quedaría el perfil completo** con ese cambio.
+- **`remove`:** quitar cada acorde (solo si quedarían al menos 1).
+- **`decrease` / `increase`:** bajar a la mitad (`v * 0.5`) o subir (`v + 0.3 × el más fuerte`, con tope en 100); solo se agrega si el valor realmente cambia.
+- **`replace`:** si el perfil **ya tiene 8 acordes** (el máximo) no se puede agregar nada, así que se prueba **cambiar** cada acorde por cada uno de los otros del vocabulario (con tres intensidades).
+- **`add`:** si hay lugar, agregar cada acorde que todavía no está, con las tres intensidades de `ADD_LEVELS`.
+- `{**cur, name: lower}` es una forma de decir "una copia del diccionario con este valor cambiado"; `{**rest, new: level}` es "el diccionario sin el acorde viejo y con el nuevo".
+- `{max(1, min(100, round(top * f))) for f in ADD_LEVELS}` usa un **conjunto** (`{...}`) para no repetir niveles si dos fracciones dan el mismo número.
+
+**¿Cuántos candidatos son?** Con un perfil de 5 acordes: unos 15 cambios sobre los existentes + 67 acordes × 3 niveles ≈ 220. Con un perfil completo (8 acordes) los reemplazos suman unos 8 × 64 × 3 ≈ 1.500. Los dos casos se resuelven en **decenas de milisegundos**.
+
+```python
+def suggest(self, accords, target, top_k=3):
+    cur = self.validate_input(accords)
+    index = self._index(rescale_to_max(cur))
+    ...
+```
+**`suggest`, paso a paso:**
+1. **Valida** la entrada y calcula el **índice actual**.
+2. **Interpreta el objetivo.** Si es un texto (`"male"`), el objetivo es el **centro de esa zona** (`zone_center`, definido en `perception.py`: 0,165 para femenino, 0,5 para intermedia y 0,835 para masculino) y se considera "alcanzado" si el perfil **ya está en esa zona**. Si es un número, el objetivo es ese número y se considera alcanzado a ±0,03. Un objetivo inválido lanza `InvalidTargetError`.
+3. Si **ya está alcanzado**, devuelve la respuesta con `reached: true` y **sin sugerencias** (no hay nada que mejorar).
+4. Si no, arma los candidatos y los evalúa **todos juntos en una sola llamada** al modelo:
+   ```python
+   X = np.vstack([vectorize(rescale_to_max(profile), self.vocab) for *_, profile in candidates])
+   new_index = np.clip(self.index_model.predict(X), 0.0, 1.0)
+   ```
+   `np.vstack` apila los vectores en una sola matriz (una fila por candidato), y `predict` devuelve el índice esperado de todos de una vez. Es **mucho más rápido** que preguntar de a uno. `for *_, profile in candidates` es una forma de decir "de cada tupla, solo me interesa el último elemento".
+5. Calcula la **ganancia** de cada candidato: `distancia_actual − distancia_nueva`, donde "distancia" es lo lejos que está el índice del objetivo. Se descartan los que ganan menos de `MIN_GAIN`.
+6. Ordena de **mayor a menor ganancia** y elige hasta 3, con una regla: **ninguna sugerencia puede tocar un acorde que ya usó otra**. Para eso lleva un conjunto `touched` (acordes "tocados") y saltea las que se superponen. Así nunca aparece "quitá X" junto con "cambiá X por Y".
+7. Devuelve: el índice actual, la zona, el índice objetivo, si ya se alcanzó y la lista de sugerencias (cada una con acción, acorde, acorde reemplazado, intensidades de antes y después, índice esperado y cuánto cambia).
+
+> **Qué NO es esto:** es una **verificación con el modelo**, no con la realidad. "El índice esperado sube a 0,43" quiere decir "el modelo, que aprendió de perfumes existentes, cree que un perfil así se percibiría más masculino". No sabe cómo huele una mezcla ni cómo interactúan las materias primas. Son **ideas para probar**, no una receta.
+
 ---
 
 # Parte 6: El pipeline de datos y entrenamiento
@@ -1843,7 +1924,8 @@ Guarda `reports/evaluation.json`.
 
 ```python
 STEPS = ["01_eda.py", "02_etl.py", "03_experiments.py", "04_train.py",
-         "05_train_index.py", "06_evaluate.py", "../experiments/vote_weights.py"]
+         "05_train_index.py", "06_evaluate.py",
+         "../experiments/vote_weights.py", "../experiments/suggestions_check.py"]
 
 for step in STEPS:
     print(f"\n=== {step} ===", flush=True)
@@ -1873,6 +1955,26 @@ Entrena con las filas `a` que tengan al menos `n_min` votos, usando la función 
 **Parte 2:** compara 8 "esquemas" (sin filtro, filtro mínimo 5, distintos topes, `√votos`, combinaciones) con **3 particiones distintas** (semillas 42, 7 y 123) y promedia.
 
 **Resultado:** filtrar no ayuda; ponderar mejora apenas (~1,5 %). Se elige `√votos con tope 100`. Los resultados quedan en `reports/vote_weights.json` y se muestran también en la pestaña "El modelo" de la página.
+
+
+## 6.11 `experiments/suggestions_check.py`: ¿las sugerencias sirven?
+
+Otro estudio **aparte del pipeline principal**: comprueba, con perfumes reales del **test**, que las sugerencias de verdad acerquen el perfil al objetivo.
+
+```python
+PARES = (("unisex", "male"), ("unisex", "female"), ("female", "male"), ("male", "female"))
+MUESTRA = 300
+```
+Define cuatro casos "de zona actual a zona objetivo" y toma **hasta 300 perfumes por caso**.
+
+**Qué hace, en orden:**
+1. Carga el predictor real y los perfumes del **test** (barajados con semilla fija).
+2. Para cada perfume calcula en qué **zona** cae según el modelo.
+3. Para los que están en la zona de origen del caso, llama a `predictor.suggest(perfil, objetivo)` y **mide el tiempo**.
+4. Registra: cuántos reciben **al menos una sugerencia**, en cuántos la **mejor sugerencia deja al perfil dentro de la zona objetivo**, **cuánto mejora el índice** con la mejor, qué **acción** es la mejor y cuántos milisegundos tarda.
+5. Guarda todo en `reports/suggestions.json`.
+
+**Advertencia importante, escrita en el propio script:** son índices **esperados por el modelo**, no cambios reales de percepción: es una verificación de **coherencia**, no una prueba de causalidad.
 
 ---
 
@@ -1934,6 +2036,44 @@ class PredictResponse(BaseModel):
     influences: list[Influence]
 ```
 **`PredictResponse` (la respuesta).** Los siete elementos que devuelve el servidor: índice (entre 0 y 1), zona, lectura femenino vs. masculino, probabilidades por clase, *lift*, los acordes que realmente se usaron (ya normalizados y reescalados) y las influencias. `ge` = greater or equal.
+
+### Los esquemas de las sugerencias
+
+```python
+class SuggestRequest(BaseModel):
+    accords: list[AccordInput] = Field(min_length=1, max_length=MAX_ACCORDS)
+    target: Literal["female", "unisex", "male"] | None = None
+    target_index: float | None = Field(default=None, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _exactly_one_target(self):
+        if (self.target is None) == (self.target_index is None):
+            raise ValueError("Indica exactamente uno: 'target' (zona) o 'target_index' (0-1).")
+        return self
+```
+**`SuggestRequest` (el pedido de sugerencias).** Tiene los acordes (igual que `PredictRequest`) y **el objetivo**, que se puede dar de dos maneras alternativas:
+- `target`: una zona (`"female"`, `"unisex"` o `"male"`). `Literal[...]` significa "solo se aceptan exactamente estos valores".
+- `target_index`: un número entre 0 y 1.
+
+Los dos son opcionales (`| None = None`: "puede no estar"), pero **tiene que venir exactamente uno**. Eso lo verifica el `@model_validator`, una función que Pydantic ejecuta **después** de validar los campos por separado: `(self.target is None) == (self.target_index is None)` es verdadero cuando **ninguno** o **los dos** están presentes (ambos "es None" o ambos "no es None"), y en ese caso lanza un error que se traduce en una respuesta **422**.
+
+```python
+class Suggestion(BaseModel):
+    action: str        # add | remove | increase | decrease | replace
+    accord: str
+    replaces: str | None = None
+    from_intensity: float | None
+    to_intensity: float | None
+    index_after: float
+    delta: float
+
+class SuggestResponse(BaseModel):
+    index: float;  zone: str;  target_index: float
+    reached: bool
+    suggestions: list[Suggestion]
+```
+- **`Suggestion`:** una sugerencia. `from_intensity` es `null` si se agrega; `to_intensity` es `null` si se quita; `replaces` solo se usa en `replace` (el acorde que sale). `index_after` es el índice esperado con el cambio y `delta` cuánto cambia respecto del actual.
+- **`SuggestResponse`:** el índice y la zona actuales, el índice objetivo, `reached` (si ya está en el objetivo) y la lista.
 
 ---
 
@@ -2030,6 +2170,18 @@ def predict(req: PredictRequest):
 - `response_model=PredictResponse` asegura que la respuesta tenga el formato definido.
 
 ```python
+@app.post("/api/suggest", response_model=SuggestResponse)
+def suggest(req: SuggestRequest):
+    p = get_predictor()
+    target = req.target if req.target is not None else req.target_index
+    try:
+        return p.suggest({a.name: a.intensity for a in req.accords}, target)
+    except (InvalidAccordsError, InvalidTargetError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+```
+**`POST /api/suggest`: el endpoint de sugerencias.** Recibe los acordes y el objetivo, elige cuál de los dos objetivos vino (`req.target if req.target is not None else req.target_index`: "la zona si hay zona; si no, el número") y llama a `predictor.suggest`. Si el predictor detecta un problema (acorde desconocido, objetivo inválido) responde **422** con el mensaje. Es de tipo **POST** porque, igual que `/api/predict`, recibe datos para procesar.
+
+```python
 @app.get("/api/model/info")
 def model_info():
     p = get_predictor()
@@ -2112,6 +2264,8 @@ La página tiene una **barra superior** (logo, pestañas y botón de tema), **do
 - **Resultado** (`#result`, oculto hasta que haya predicción): el título "Posición en el espectro", el veredicto (`verdict`) junto al **número del índice** (`index-num`, con la etiqueta "índice"), el **espectro** (`spectrum-track` con su `spectrum-marker`, más la escala con "Femenino / Unisex / Masculino"), una frase explicativa (`verdict-sub`) y el aviso de que es orientación estadística.
 
 **La "lectura detallada"** (`#details`, oculta hasta que haya resultado) está **debajo**, a todo el ancho, y tiene tres tarjetas: *Femenino vs. masculino* (`duel`), *Probabilidad según la etiqueta de género* (`bars`) y *Qué acordes pesan más* (`influences`, con un eje "← Femenino / Masculino →" debajo).
+
+**La tarjeta de sugerencias** (`#suggest`) está dentro de la lectura detallada, debajo de las tres anteriores. Tiene un título ("Llevar el perfil hacia…"), una aclaración de que es orientación estadística, **tres botones de objetivo** (`.target`, con `data-target="female|unisex|male"` y `aria-pressed` para saber cuál está activo), una línea de estado (`#suggest-status`, que los lectores de pantalla anuncian) y la **lista de sugerencias** (`#suggestions`), que rellena JavaScript.
 
 > **Cambio de diseño:** antes todo el resultado estaba apretado en una tarjeta. Ahora arriba queda **lo esencial** (posición e índice) y debajo el **detalle**, lo que hace la pantalla más clara.
 
@@ -2200,6 +2354,18 @@ Los deslizadores nativos no pintan "lo ya recorrido". Acá se usa una **variable
 .dbar.male   { left: 50%;  background: var(--male); }
 ```
 Cada acorde tiene una pista con una **línea en el centro**: si empuja hacia femenino, su barra **crece hacia la izquierda** (rosa); hacia masculino, **hacia la derecha** (azul); si es neutro, solo un puntito. Así se ve de un vistazo hacia qué lado empuja cada acorde y cuánto.
+
+### Las sugerencias
+```css
+.targets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.target[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.suggestions li { display: flex; align-items: center; justify-content: space-between; ... }
+.sug-delta.male { color: var(--male-t); }   .sug-delta.female { color: var(--female-t); }
+@media (max-width: 560px) { .targets { grid-template-columns: minmax(0, 1fr); } ... }
+```
+- Los tres botones de objetivo son una **cuadrícula de tres columnas iguales**; el que está activo (`aria-pressed="true"`) se rellena con el color de acento (mismo criterio que los ejemplos y los acordes elegidos).
+- Cada sugerencia es una fila con el texto a la izquierda y el botón "Aplicar" a la derecha. El cambio del índice (`+0,34`) se pinta **azul si sube** (hacia masculino) y **rosa si baja** (hacia femenino), siguiendo el código de colores de toda la interfaz.
+- En **celulares** (560 px o menos) los botones de objetivo pasan a una sola columna y cada sugerencia apila el texto arriba y el botón abajo, a todo el ancho.
 
 ### Los "esqueletos" de carga
 `.skeleton` con `animation: shimmer`: mientras llegan los datos del servidor, se muestran cajas grises con un **brillo que se desplaza** (`@keyframes shimmer`), en vez de un espacio vacío. Es una pista visual de que "está cargando".
@@ -2311,6 +2477,19 @@ async function predict() {
   4. **Influencias:** dibuja hasta 8 filas. Para cada una calcula los puntos (índice × 100, con signo `+` o `−`), arma una descripción accesible ("woody: empuja hacia masculino, +6 pts") y fija el ancho de la barra **proporcional al mayor efecto** (`maxAbs`): el acorde de mayor influencia ocupa la mitad de la pista y los demás, una proporción.
   5. **Barra flotante:** actualiza su veredicto, índice, color y marcador.
 
+### Las sugerencias (JavaScript)
+La interfaz guarda en `state` dos cosas nuevas: `target` (el objetivo elegido, o `null`) y `sugSeq` (un contador de pedidos, igual al `seq` de las predicciones).
+
+- **`suggestionText(s)`:** convierte una sugerencia en una frase en español: "Agregá tobacco con intensidad 100", "Quitá white floral", "Subí woody de 60 a 90", "Cambiá vanilla por leather (intensidad 100)". Usa un `switch` (una cadena de casos según el valor de `s.action`).
+- **`applySuggestion(s)`:** **aplica** la sugerencia sobre los acordes elegidos: si es "quitar", elimina el acorde; en los demás casos fija la nueva intensidad (y en "reemplazar" borra primero el acorde viejo). Después llama a `changed()`, que redibuja filas y botones y pide una nueva predicción, y lo anuncia por voz.
+- **`loadSuggestions()`:** si hay objetivo y acordes, pide `/api/suggest` con los acordes actuales y el objetivo. Igual que en `predict`, cada pedido lleva un número de secuencia (`sugSeq`) y **se descarta una respuesta que llegue tarde**.
+- **`renderSuggestions(data)`:** tiene tres casos: si el objetivo **ya se alcanzó**, escribe "Listo: el perfil ya está en la zona masculina"; si **no hay cambios simples** que ayuden, lo dice; y si hay sugerencias, arma una fila por cada una con su texto, el índice esperado, el cambio coloreado y el botón "Aplicar".
+- **`initSuggestions()`:** conecta los tres botones de objetivo. Tocar uno lo activa (y desactiva los otros); **tocar el que ya está activo lo desactiva** y borra las sugerencias.
+
+**Cómo se integra con el resto:** cuando termina una predicción, `renderResult` llama a `loadSuggestions()` si hay un objetivo activo. Por eso las sugerencias **siempre acompañan al perfil actual**: si movés un deslizador o aplicás una sugerencia, se recalculan solas. También se vacían cuando no queda ningún acorde (`predict` incrementa `sugSeq` para descartar lo que estuviera en camino).
+
+**El flujo típico del usuario:** carga un perfil → elige "Más masculino" → aparecen 3 sugerencias → aplica la primera → el índice sube y las sugerencias se recalculan → repite hasta que aparece "Listo: el perfil ya está en la zona masculina". Cada paso es un cambio simple, y el usuario decide cuáles aplicar.
+
 ### La barra flotante (celular)
 - **`updateMinibar()`:** se muestra si **hay resultado y la tarjeta del resultado no está a la vista**.
 - **`initMinibar()`:** usa un **`IntersectionObserver`** (una herramienta del navegador que avisa **cuándo un elemento entra o sale de la pantalla**) para saber si la tarjeta del resultado se ve (al menos 20 %). Al tocar la barra, la página **vuelve al resultado** con scroll suave (o directo, si el usuario pidió menos movimiento).
@@ -2340,7 +2519,7 @@ Un **test** es un programita que ejecuta una parte del código con una entrada c
 ```bash
 python -m pytest tests -q
 ```
-(`-q` = "quiet": muestra poco). Hoy hay **40 tests** y todos pasan. Un test típico usa `assert` ("afirmá que…"): `assert resultado == esperado`. Si la afirmación es falsa, el test falla.
+(`-q` = "quiet": muestra poco). Hoy hay **61 tests** y todos pasan. Un test típico usa `assert` ("afirmá que…"): `assert resultado == esperado`. Si la afirmación es falsa, el test falla.
 
 ### `tests/conftest.py`: el ayudante de todos los tests
 
@@ -2416,7 +2595,30 @@ def client(monkeypatch, tiny_predictor):
 
 Tests: el chequeo de salud devuelve `ok`; la lista de acordes incluye `woody` y el máximo 8; la respuesta tiene exactamente los 7 campos esperados y valores coherentes (índice entre 0 y 1, probabilidades que suman 1); **un perfil masculino queda del lado masculino y uno femenino del lado femenino**; las **influencias tienen el signo correcto**; la **entrada se reescala**; un acorde desconocido da **422** con un mensaje que lo nombra; entradas inválidas (lista vacía, intensidad 0, 9 acordes) dan 422; `/api/model/info` incluye los metadatos; y la página principal se sirve (contiene "ScentAI").
 
-### `tests/test_readme_consistency.py` (7 tests)
+### `tests/test_suggest.py` (19 tests)
+Verifican las **sugerencias**, primero directamente sobre el predictor de juguete y después a través de la API.
+
+| Test | Qué comprueba |
+|---|---|
+| `test_zone_center_values` | Los centros de zona (0,165 / 0,5 / 0,835) y que una zona inexistente falle. |
+| `test_each_suggestion_moves_closer_to_target` | **Cada sugerencia acerca el índice al objetivo** (y sube si el objetivo es masculino). |
+| `test_suggestions_sorted_and_one_per_accord` | Están ordenadas de mejor a peor y no se repite el acorde. |
+| `test_toward_female_decreases_index` | Hacia femenino, el índice baja. |
+| `test_reached_zone_returns_no_suggestions` | Si el perfil ya está en la zona, `reached` es verdadero y no hay sugerencias. |
+| `test_numeric_target_and_tolerance` | El objetivo numérico y la tolerancia de ±0,03. |
+| `test_intensities_stay_in_user_scale` | Las intensidades sugeridas están entre 1 y 100 y respetan **la escala del usuario**. |
+| `test_no_add_when_profile_is_full_but_replace_is_offered` | Con el máximo de acordes **no se sugiere agregar**, pero sí **reemplazar**. |
+| `test_no_add_or_replace_when_not_full` | Con lugar libre, no se ofrece reemplazar. |
+| `test_suggestions_never_touch_the_same_accord_twice` | Dos sugerencias no tocan el mismo acorde. |
+| `test_no_remove_with_single_accord` | Con un solo acorde no se sugiere quitarlo. |
+| `test_invalid_inputs` | Objetivo inválido (zona o índice fuera de rango) y acorde desconocido fallan. |
+| `test_api_suggest_ok` / `test_api_suggest_numeric_target` | La API responde con el esquema correcto, con objetivo por zona y por número. |
+| `test_api_suggest_target_validation` (4 variantes) | Sin objetivo, con **dos** objetivos, con una zona inventada o con un índice de 1,5: todos dan **422**. |
+| `test_api_suggest_unknown_accord` | Un acorde desconocido da 422 con un mensaje que lo nombra. |
+
+**`monkeypatch.setattr(config, "MAX_ACCORDS", 3)`** (usado en dos tests) cambia **temporalmente** el máximo de acordes a 3 para probar el comportamiento de "perfil completo" sin necesitar un perfil de 8 acordes. Al terminar el test, el valor vuelve solo al original. `@pytest.mark.parametrize` repite un mismo test con distintos datos (las 4 variantes de objetivo inválido).
+
+### `tests/test_readme_consistency.py` (9 tests)
 **Una idea poco común y muy útil:** verificar que **las cifras escritas en el README coinciden con los reportes**. Si alguien reentrena y los números cambian, pero se olvida de actualizar el README, este test **falla**.
 
 ```python
@@ -2426,7 +2628,7 @@ def dec(valor, d):  # 0.6125 -> '0,613'
 def miles(n):       # 98364 -> '98.364'
     return f"{int(n):,}".replace(",", ".")
 ```
-Dos funciones que escriben los números **al estilo del README** (coma decimal, punto de miles, redondeo "para arriba" en la mitad). `debe_aparecer(...)` verifica que cada texto esté en el README. Seis tests revisan el README y cubren: limpieza y partición, estadísticas de votos y sesgo de la etiqueta, comparación índice vs. clasificador (incluyendo que los cuatro criterios de éxito sean verdaderos y que el caso de prueba sea "masculino"), métricas del clasificador, estudio de pesos y experimentos/robustez. El séptimo test hace lo mismo con **esta guía**: verifica que las cifras clave que cita (tamaños de train y test, porcentajes de la etiqueta "unisex", error medio, exactitud…) sigan coincidiendo con los reportes. Si falta un reporte, el test se **saltea** (`pytest.skip`) con un aviso.
+Dos funciones que escriben los números **al estilo del README** (coma decimal, punto de miles, redondeo "para arriba" en la mitad). `debe_aparecer(...)` verifica que cada texto esté en el README. Siete tests revisan el README y cubren: limpieza y partición, estadísticas de votos y sesgo de la etiqueta, comparación índice vs. clasificador (incluyendo que los cuatro criterios de éxito sean verdaderos y que el caso de prueba sea "masculino"), métricas del clasificador, estudio de pesos, experimentos/robustez y la verificación de las sugerencias. Los dos últimos tests hacen lo mismo con **esta guía**: verifican que las cifras clave que cita (tamaños de train y test, porcentajes de la etiqueta "unisex", error medio, exactitud…) sigan coincidiendo con los reportes. Si falta un reporte, el test se **saltea** (`pytest.skip`) con un aviso.
 
 ---
 
@@ -2579,6 +2781,7 @@ Cada paso del pipeline deja un archivo JSON con sus resultados. **Todas las cifr
 | `index_metrics.json` | `05_train_index.py` | Validación cruzada del regresor, comparación A vs. B, criterios de éxito, caso de prueba. |
 | `evaluation.json` | `06_evaluate.py` | Error de calibración (ECE), acordes más importantes, rendimiento por votos, robustez por marca. |
 | `vote_weights.json` | `experiments/vote_weights.py` | Estudio de filtros y pesos por votos. |
+| `suggestions.json` | `experiments/suggestions_check.py` | Verificación de las sugerencias sobre perfumes del test. |
 
 (Los archivos con **tiempos de ejecución** pueden variar un poco entre corridas; todo lo demás es idéntico.)
 
@@ -2603,6 +2806,7 @@ Cada paso del pipeline deja un archivo JSON con sus resultados. **Todas las cifr
 | `index_metricas.png` | Error y Spearman de A vs. B según el mínimo de votos. |
 | `index_zonas.png` | Matriz de confusión de las **zonas** del índice. |
 | `demo_predictor.jpg`, `demo_resultado.jpg` | Capturas de la página funcionando. |
+| `demo_sugerencias.jpg` | Captura de la tarjeta "Llevar el perfil hacia…" con sus sugerencias. |
 
 ---
 
@@ -2806,6 +3010,25 @@ Cada tabla de esa pestaña sale de un reporte:
 | "Etiqueta de marca vs. percepción" + tabla de notas | `eda.json` + `experiments.json` |
 | "Clasificador de la etiqueta" (validación cruzada, matriz, clases) | `metrics.json` |
 
+## 9.8 Las sugerencias: ¿funcionan?
+
+Se probaron con perfumes reales del test (hasta 300 por caso) y se midió el índice **esperado por el modelo** después de aplicar la **mejor** sugerencia.
+
+| Zona actual → objetivo | Perfumes | Reciben sugerencias | La mejor llega a la zona objetivo | Mejora media del índice |
+|---|---|---|---|---|
+| Intermedia → masculino | 300 | 100,0 % | **88,0 %** | 0,241 |
+| Intermedia → femenino | 300 | 100,0 % | **96,0 %** | 0,284 |
+| Masculino → femenino | 300 | 100,0 % | **54,7 %** | 0,401 |
+| Femenino → masculino | 300 | 100,0 % | **9,3 %** | 0,388 |
+
+**Cómo leerlo:**
+- **Reciben sugerencias: 100 %.** Siempre hay algún cambio que acerca el perfil al objetivo.
+- **"La mejor llega a la zona":** con **un solo cambio**, el perfil intermedio llega a la zona masculina en el 88,0 % de los casos y a la femenina en el 96,0 %. Es lógico: estar en el medio es estar cerca de ambas.
+- **Cruzar de un extremo al otro es difícil con un solo paso:** de femenino a masculino, la mejor sugerencia lo logra solo en el 9,3 % (el perfil está muy lejos). Pero la **mejora media es grande** (0,388): se acerca bastante, y aplicando varias sugerencias seguidas se llega (como se vio en la demo).
+- **Qué acción gana:** en perfiles completos (8 acordes, que son casi todos los perfumes reales) la mejor es casi siempre **reemplazar** un acorde por otro, porque no se puede agregar.
+
+**Límite que hay que decir en voz alta:** estos números son **del modelo**: miden si el índice que *él* predice mejora. No demuestran que un perfume real cambie de carácter. Para eso habría que **fabricar y oler** las variantes. Por eso la interfaz y la ficha del modelo lo presentan como **ideas para probar**.
+
 ---
 
 # Parte 10: Preguntas frecuentes y guía práctica
@@ -2834,6 +3057,7 @@ Cada tabla de esa pestaña sale de un reporte:
 | Los **hiperparámetros** del índice | `nuevo_regresor` en `pipeline/05_train_index.py` | Reentrenar; **no** ajustar mirando el test. |
 | Los **colores** de la página | Variables al principio de `styles.css` (`--female`, `--male`, `--bg`…) | Hay **dos bloques**: el tema oscuro (`:root`) y el claro (`:root[data-theme="light"]`). Los colores de **texto** (`--female-t`…) deben mantener buen contraste con el fondo. |
 | El **logo** | Archivos de `app/frontend/assets/` (`logo.svg`, `logo-mark.svg`) | El README también usa `logo.svg`. |
+| Qué **cambios** prueban las sugerencias | `ADD_LEVELS`, `RAISE_STEP`, `MIN_GAIN` y `REACHED_TOLERANCE` en `perfume_gender/predictor.py` | Después correr `python experiments/suggestions_check.py` y actualizar el README (el test de concordancia avisa). |
 | Los **ejemplos rápidos** | `PRESETS` en `app/frontend/app.js` | Los acordes deben existir en el vocabulario (los que no, se ignoran). |
 | El **puerto** | Los comandos `--port 8000` en `run.bat`/`run.sh`, o `-p 8080:8000` en Docker | |
 | La **semilla** | `SEED` en `config.py` | Cambian ligeramente todos los resultados; el README quedaría desactualizado (el test de concordancia avisaría). |

@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 STEPS = ["01_eda.py", "02_etl.py", "03_experiments.py", "04_train.py", "05_train_index.py", "06_evaluate.py",
-         "../experiments/vote_weights.py"]
+         "../experiments/vote_weights.py", "../experiments/suggestions_check.py"]
 
 
 def main() -> None:

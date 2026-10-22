@@ -1,0 +1,52 @@
+{
+  "muestra_por_par": 300,
+  "pares": {
+    "unisex->male": {
+      "n": 300,
+      "con_sugerencias_pct": 100.0,
+      "mejor_llega_pct": 88.0,
+      "mejora_media": 0.241,
+      "acciones": {
+        "replace": 286,
+        "add": 13,
+        "remove": 1
+      },
+      "ms_medio": 33
+    },
+    "unisex->female": {
+      "n": 300,
+      "con_sugerencias_pct": 100.0,
+      "mejor_llega_pct": 96.0,
+      "mejora_media": 0.284,
+      "acciones": {
+        "replace": 286,
+        "add": 11,
+        "remove": 3
+      },
+      "ms_medio": 34
+    },
+    "female->male": {
+      "n": 300,
+      "con_sugerencias_pct": 100.0,
+      "mejor_llega_pct": 9.3,
+      "mejora_media": 0.388,
+      "acciones": {
+        "replace": 282,
+        "add": 17,
+        "remove": 1
+      },
+      "ms_medio": 34
+    },
+    "male->female": {
+      "n": 300,
+      "con_sugerencias_pct": 100.0,
+      "mejor_llega_pct": 54.7,
+      "mejora_media": 0.401,
+      "acciones": {
+        "replace": 286,
+        "add": 14
+      },
+      "ms_medio": 37
+    }
+  }
+}

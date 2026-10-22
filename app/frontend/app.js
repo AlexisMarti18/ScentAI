@@ -36,6 +36,7 @@ const ICONS = {
 const state = {
   vocab: [], max: 8, selected: new Map(), filter: "", timer: null, seq: 0,
   chipEls: new Map(), rows: new Map(), presetEls: new Map(), hasResult: false, summaryVisible: true, lastZone: null,
+  target: null, sugSeq: 0,
 };
 const dom = {}; // nodos del resultado que se crean una sola vez y luego solo se actualizan
 
@@ -296,6 +297,8 @@ async function predict() {
     state.lastZone = null;
     $("result").hidden = true;
     $("details").hidden = true;
+    state.sugSeq++; // descarta sugerencias en vuelo
+    clearSuggestions();
     $("result-empty").hidden = false;
     updateMinibar();
     return;
@@ -420,6 +423,87 @@ function renderResult(data) {
   $("minibar-index").textContent = fmt(data.index);
   $("minibar-marker").style.left = left;
   updateMinibar();
+
+  if (state.target) loadSuggestions(); // las sugerencias acompañan al perfil actual
+}
+
+/* ------------------------------------------------------------ sugerencias */
+const TARGET_TEXT = { female: "más femenino", unisex: "la zona intermedia", male: "más masculino" };
+
+function suggestionText(s) {
+  switch (s.action) {
+    case "add": return `Agregá ${s.accord} con intensidad ${s.to_intensity}`;
+    case "remove": return `Quitá ${s.accord}`;
+    case "increase": return `Subí ${s.accord} de ${s.from_intensity} a ${s.to_intensity}`;
+    case "decrease": return `Bajá ${s.accord} de ${s.from_intensity} a ${s.to_intensity}`;
+    case "replace": return `Cambiá ${s.replaces} por ${s.accord} (intensidad ${s.to_intensity})`;
+    default: return s.accord;
+  }
+}
+
+function applySuggestion(s) {
+  if (s.action === "remove") state.selected.delete(s.accord);
+  else {
+    if (s.action === "replace") state.selected.delete(s.replaces);
+    state.selected.set(s.accord, s.to_intensity);
+  }
+  changed();
+  announce(`Se aplicó: ${suggestionText(s)}.`);
+}
+
+function clearSuggestions(message = "") {
+  $("suggestions").replaceChildren();
+  $("suggest-status").textContent = message;
+}
+
+async function loadSuggestions() {
+  if (!state.target || !state.selected.size) { clearSuggestions(); return; }
+  const seq = ++state.sugSeq;
+  const body = { accords: [...state.selected].map(([name, intensity]) => ({ name, intensity })), target: state.target };
+  try {
+    const data = await api("/api/suggest", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (seq !== state.sugSeq) return; // llego una respuesta mas nueva
+    renderSuggestions(data);
+  } catch (err) {
+    if (seq === state.sugSeq) clearSuggestions("No se pudieron calcular las sugerencias: " + err.message);
+  }
+}
+
+function renderSuggestions(data) {
+  const list = $("suggestions");
+  list.replaceChildren();
+  if (data.reached) {
+    const zoneName = { female: "la zona femenina", unisex: "la zona intermedia", male: "la zona masculina" }[state.target];
+    $("suggest-status").textContent = `Listo: el perfil ya está en ${zoneName} (índice ${fmt(data.index)}).`;
+    return;
+  }
+  if (!data.suggestions.length) {
+    $("suggest-status").textContent = "No encontré cambios simples que acerquen el perfil a ese objetivo.";
+    return;
+  }
+  $("suggest-status").textContent = `Para acercarlo a ${TARGET_TEXT[state.target]} (índice actual ${fmt(data.index)}). Podés aplicar uno y ver cómo cambia:`;
+  for (const s of data.suggestions) {
+    const dir = s.delta > 0 ? "male" : "female";
+    const delta = `${s.delta > 0 ? "+" : "−"}${fmt(Math.abs(s.delta))}`;
+    list.append(el("li", {},
+      el("div", { class: "sug-main" },
+        el("span", { class: "sug-text", text: suggestionText(s) }),
+        el("span", { class: "sug-eff" }, "Índice esperado ", el("b", { text: fmt(s.index_after) }), " ",
+          el("span", { class: `sug-delta ${dir}`, text: `(${delta})` }))),
+      el("button", { class: "btn btn-secondary btn-sm", type: "button", text: "Aplicar", onclick: () => applySuggestion(s) })));
+  }
+}
+
+function initSuggestions() {
+  const buttons = [...document.querySelectorAll(".target")];
+  buttons.forEach((btn) => btn.addEventListener("click", () => {
+    const same = state.target === btn.dataset.target;
+    state.target = same ? null : btn.dataset.target; // tocar de nuevo desactiva
+    buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.target === state.target)));
+    if (state.target) loadSuggestions(); else clearSuggestions();
+  }));
 }
 
 function updateMinibar() {
@@ -571,6 +655,7 @@ async function init() {
   initTabs();
   initControls();
   initMinibar();
+  initSuggestions();
   skeletonChips();
   renderSelected();
 

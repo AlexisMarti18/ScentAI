@@ -360,6 +360,34 @@ Problemas frecuentes:
 4. Debajo, la **lectura detallada**: la **lectura femenino vs. masculino**, las **probabilidades por etiqueta con su frecuencia base** y **qué acordes pesan más** (cuántos puntos del índice se mueve si se quita cada uno, con barras que apuntan a femenino o a masculino).
 5. El botón del sol/luna cambia entre **tema oscuro y claro** (por defecto sigue al sistema y recuerda tu elección).
 6. La pestaña **El modelo** muestra las métricas reales leídas de la API: comparación índice vs. clasificador, estudio de votos, comparación de modelos y matriz de confusión.
+7. En **"Llevar el perfil hacia…"** elegí un objetivo (más femenino, zona intermedia o más masculino): la app propone hasta 3 cambios simples y un botón **Aplicar** para probarlos.
+
+![Sugerencias para mover el perfil](docs/figures/demo_sugerencias.jpg)
+
+#### Cómo funcionan las sugerencias
+Con el modelo de índice se prueban **cambios simples de a uno** sobre el perfil actual y se devuelven los que más lo acercan al objetivo, sin repetir acorde:
+
+| Cambio | Qué prueba |
+|---|---|
+| **Agregar** un acorde | Con intensidad 30 %, 60 % o 100 % de la del acorde más fuerte (solo si hay menos de 8 acordes). |
+| **Quitar** un acorde | Cada uno de los que hay (si quedan al menos 2). |
+| **Subir / bajar** la intensidad | Subir suma el 30 % del acorde más fuerte; bajar la reduce a la mitad. |
+| **Reemplazar** un acorde por otro | Solo cuando el perfil ya tiene 8 acordes y no se puede agregar. |
+
+Las intensidades sugeridas están en **la misma escala que cargó el usuario**, para poder aplicarlas tal cual. Como cada cambio mueve el índice en un paso moderado, se puede **aplicar uno y pedir de nuevo** hasta llegar a la zona buscada.
+
+**¿Qué tan bien funcionan?** Se verificó con perfumes reales del test (`experiments/suggestions_check.py`, hasta 300 por caso). Es el índice **esperado por el modelo**, no un cambio real de percepción:
+
+| Zona actual → objetivo | La mejor sugerencia llega a la zona | Mejora media del índice |
+|---|---|---|
+| Intermedia → masculino | **88,0 %** | 0,241 |
+| Intermedia → femenino | **96,0 %** | 0,284 |
+| Masculino → femenino | **54,7 %** | 0,401 |
+| Femenino → masculino | **9,3 %** | 0,388 |
+
+Lo esperable: acercar un perfil intermedio hacia un extremo es fácil con un solo cambio; cruzar de un extremo al otro (por ejemplo, de femenino a masculino) requiere varios pasos.
+
+> **Es correlación, no causalidad.** El modelo aprendió cómo se perciben perfumes ya existentes; no sabe cómo huele una fórmula. Las sugerencias son ideas para probar, no una receta.
 
 ### 4.4 API
 `POST /api/predict`
@@ -383,11 +411,18 @@ Respuesta real del modelo incluido:
   ]
 }
 ```
+`POST /api/suggest`
+```bash
+curl -X POST http://localhost:8000/api/suggest -H "Content-Type: application/json" \n  -d '{"accords":[{"name":"white floral","intensity":100},{"name":"sweet","intensity":75}],"target":"male"}'
+```
+Devuelve el índice actual, si el objetivo ya se alcanzó y la lista de sugerencias (por ejemplo, `{"action": "add", "accord": "tobacco", "to_intensity": 100, "index_after": ..., "delta": ...}`).
+
 | Endpoint | Descripción |
 |---|---|
 | `GET /api/health` | Estado del servicio y de los modelos |
 | `GET /api/accords` | Vocabulario de acordes válidos y máximo permitido |
 | `POST /api/predict` | Índice, zona, lectura masculino/femenino, probabilidades, frecuencia base e influencia de cada acorde (acordes desconocidos o más de 8 → 422) |
+| `POST /api/suggest` | Hasta 3 cambios que acercan el índice al objetivo (`target`: `female`, `unisex` o `male`, o `target_index` entre 0 y 1; exactamente uno). Responde `index`, `zone`, `reached` y `suggestions` (`action`, `accord`, `replaces`, `from_intensity`, `to_intensity`, `index_after`, `delta`) |
 | `GET /api/model/info` | Metadatos y métricas de ambos modelos (leídos de `models/` y `reports/`) |
 
 ### 4.5 Reentrenar desde cero (opcional)
@@ -395,7 +430,7 @@ Requiere `pip install -r requirements.txt` (entorno completo) y el dataset en `d
 ```bash
 python pipeline/run_all.py
 ```
-Orden: `01_eda.py` (figuras) → `02_etl.py` (limpieza e índice) → `03_experiments.py` (features / desbalance / votos de rating) → `04_train.py` (clasificador) → `05_train_index.py` (modelo de índice) → `06_evaluate.py` (evaluación del clasificador) → `experiments/vote_weights.py` (estudio de votos). Todas las cifras de este README salen de `reports/*.json`; `tests/test_readme_consistency.py` verifica que coincidan. Semilla fija (`42`): los resultados son reproducibles.
+Orden: `01_eda.py` (figuras) → `02_etl.py` (limpieza e índice) → `03_experiments.py` (features / desbalance / votos de rating) → `04_train.py` (clasificador) → `05_train_index.py` (modelo de índice) → `06_evaluate.py` (evaluación del clasificador) → `experiments/vote_weights.py` (estudio de votos) → `experiments/suggestions_check.py` (verificación de las sugerencias). Todas las cifras de este README salen de `reports/*.json`; `tests/test_readme_consistency.py` verifica que coincidan. Semilla fija (`42`): los resultados son reproducibles.
 
 ### 4.6 Estructura del repositorio
 ```
@@ -407,7 +442,7 @@ Orden: `01_eda.py` (figuras) → `02_etl.py` (limpieza e índice) → `03_experi
 ├── .github/workflows/          # CI: corre los tests en cada push
 ├── perfume_gender/             # lógica compartida (parseo, índice, features, predictor)
 ├── pipeline/                   # EDA → ETL → clasificador → índice → evaluación
-├── experiments/                # estudio de pesos por votos
+├── experiments/                # estudio de pesos por votos y verificación de sugerencias
 ├── app/{backend,frontend}/     # FastAPI + HTML/CSS/JS (frontend/assets: logo)
 ├── models/                     # modelos entrenados, vocabulario y metadata
 ├── reports/                    # métricas en JSON (fuente de las cifras)
@@ -421,7 +456,7 @@ Tests: `python -m pytest tests -q`.
 - **Orientación estadística**: se entrenó con acordes votados por usuarios de perfumes ya lanzados, no con fórmulas.
 - Los perfumes **masculinos** siguen siendo los más difíciles: el 44 % de los percibidos como masculinos queda en la zona intermedia.
 - **Validar con perfumistas reales** que los acordes sean el dato disponible al hacer el pedido; si conocen las notas, un modelo "acordes + notas" subiría ~7 puntos de F1 (clasificador).
-- Ideas: **sugerir qué acorde agregar o quitar** para mover un perfil hacia un lado del espectro; traducir los acordes al español; actualizar el dataset (hay una versión más reciente en Kaggle, aún no evaluada).
+- Ideas: combinar **varios cambios a la vez** en las sugerencias (hoy se aplican de a uno y se vuelve a pedir); traducir los acordes al español; actualizar el dataset (hay una versión más reciente en Kaggle, aún no evaluada).
 
 ---
 *Proyecto de Machine Learning. Datos: Fragrantica (vía Kaggle).*
